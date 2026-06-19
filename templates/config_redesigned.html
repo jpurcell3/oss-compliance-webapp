@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Configuration - OSS Compliance Verification</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Custom styles for the redesigned page */
+        .tab-button {
+            @apply px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition-colors;
+        }
+        .tab-button.active {
+            @apply border-indigo-600 text-indigo-600;
+        }
+        .tab-content {
+            @apply hidden;
+        }
+        .tab-content.active {
+            @apply block;
+        }
+        .endpoint-card {
+            @apply bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow;
+        }
+        .status-badge {
+            @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+        }
+        .status-badge.connected {
+            @apply bg-green-100 text-green-800;
+        }
+        .status-badge.disconnected {
+            @apply bg-red-100 text-red-800;
+        }
+        .status-badge.unknown {
+            @apply bg-gray-100 text-gray-800;
+        }
+        .toggle-switch {
+            @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2;
+        }
+        .toggle-switch input:checked ~ .toggle-slider {
+            @apply translate-x-5;
+        }
+        .toggle-slider {
+            @apply inline-block h-5 w-5 transform rounded-full bg-white transition-transform;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">OSS Compliance Verification</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="{{ url_for('list_reports') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Reports</a>
+                    <a href="{{ url_for('config') }}" class="text-indigo-700 hover:text-indigo-900 px-3 py-2 rounded-md text-sm font-medium">Configuration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Dynamic Banner Messages -->
+            <div id="banner-message" class="mb-6 hidden">
+                <div id="banner-content" class="rounded-md p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg id="banner-icon" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"></svg>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <p id="banner-text" class="text-sm font-medium"></p>
+                        </div>
+                        <div class="ml-auto pl-3">
+                            <button onclick="hideBanner()" class="inline-flex rounded-md p-1.5 hover:bg-gray-100 focus:outline-none">
+                                <span class="sr-only">Dismiss</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mb-6">
+                        {% for category, message in messages %}
+                            <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800{% else %}bg-green-50 text-green-800{% endif %}">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        {% if category == 'error' %}
+                                            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                            </svg>
+                                        {% else %}
+                                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            </svg>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium">{{ message }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Quick Settings Bar -->
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="px-6 py-4">
+                    <form action="{{ url_for('update_app_settings') }}" method="POST" id="quick-settings-form">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex items-center space-x-6">
+                                <!-- Debug Logging Toggle -->
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <span class="text-sm font-medium text-gray-700">Debug Logging</span>
+                                    <div class="relative inline-block w-11 h-6">
+                                        <input type="checkbox" id="debug_logging" name="debug_logging" value="true" 
+                                               class="opacity-0 w-0 h-0 absolute"
+                                               {% if config.app_settings.debug_logging %}checked{% endif %}
+                                               onchange="toggleDebugSwitch(this)">
+                                        <span class="toggle-slider-bg absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 rounded-full transition-all duration-300 {% if config.app_settings.debug_logging %}bg-indigo-600{% endif %}">
+                                            <span class="toggle-slider-dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 {% if config.app_settings.debug_logging %}transform translate-x-5{% endif %}"></span>
+                                        </span>
+                                    </div>
+                                </label>
+
+                                <!-- Cache TTL -->
+                                <div class="flex items-center space-x-2">
+                                    <label for="cache_ttl" class="text-sm text-gray-600">Cache TTL:</label>
+                                    <input type="number" id="cache_ttl" name="cache_ttl" 
+                                           value="{{ config.app_settings.cache_ttl_hours if config.app_settings else 1 }}"
+                                           min="1" max="24"
+                                           class="w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="text-xs text-gray-500">hours</span>
+                                </div>
+
+                                <!-- Max Threads -->
+                                <div class="flex items-center space-x-2">
+                                    <label for="max_threads" class="text-sm text-gray-600">Max Threads:</label>
+                                    <input type="number" id="max_threads" name="max_threads" 
+                                           value="{{ config.app_settings.max_scan_threads if config.app_settings else 4 }}"
+                                           min="1" max="16"
+                                           class="w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+
+                                <!-- Report Retention -->
+                                <div class="flex items-center space-x-2">
+                                    <label for="retention_days" class="text-sm text-gray-600">Retention:</label>
+                                    <input type="number" id="retention_days" name="retention_days" 
+                                           value="{{ config.app_settings.report_retention_days if config.app_settings else 90 }}"
+                                           min="7" max="365"
+                                           class="w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="text-xs text-gray-500">days</span>
+                                </div>
+                            </div>
+
+                            <!-- Save Button -->
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabbed Interface -->
+            <div class="bg-white shadow rounded-lg">
+                <!-- Tab Headers -->
+                <div class="border-b border-gray-200">
+                    <nav class="flex -mb-px">
+                        <button type="button" class="tab-button active" data-tab="endpoints" onclick="switchTab('endpoints')">
+                            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                            </svg>
+                            Endpoints
+                        </button>
+                        <button type="button" class="tab-button" data-tab="repositories" onclick="switchTab('repositories')">
+                            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                            </svg>
+                            Repositories
+                        </button>
+                        <button type="button" class="tab-button" data-tab="advanced" onclick="switchTab('advanced')">
+                            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            Advanced
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="p-6">
+                    <!-- Endpoints Tab -->
+                    <div id="endpoints-tab" class="tab-content active">
+                        <!-- GitHub Instances -->
+                        <div class="mb-8">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">GitHub Instances</h3>
+                                <button type="button" onclick="addEndpoint('github')" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    Add Instance
+                                </button>
+                            </div>
+
+                            <div class="space-y-3">
+                                {% if config.github_instances %}
+                                    {% for instance_id, instance in config.github_instances.items() %}
+                                        <div class="endpoint-card">
+                                            <div class="flex items-start justify-between">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center space-x-3">
+                                                        <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                                        </svg>
+                                                        <h4 class="text-base font-medium text-gray-900">{{ instance.name }}</h4>
+                                                        <span class="status-badge unknown">Not Tested</span>
+                                                    </div>
+                                                    <p class="mt-1 text-sm text-gray-500">{{ instance.api_url }}</p>
+                                                    <p class="mt-1 text-xs text-gray-400">
+                                                        {{ instance.users|length }} user{{ 's' if instance.users|length != 1 else '' }} • 
+                                                        Organization: {{ instance.org }}
+                                                    </p>
+                                                </div>
+                                                <div class="flex flex-col items-end space-y-2 ml-4">
+                                                    <div class="flex items-center space-x-2">
+                                                        <button type="button" onclick="manageUsers('{{ instance_id }}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                                            </svg>
+                                                            Users
+                                                        </button>
+                                                        <button type="button" onclick="editEndpoint('github', '{{ instance_id }}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                            </svg>
+                                                            Edit
+                                                        </button>
+                                                        <button type="button" onclick="testEndpoint('github', '{{ instance_id }}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                            </svg>
+                                                            Test
+                                                        </button>
+                                                    </div>
+                                                    <!-- User Selection for Testing - Moved under buttons -->
+                                                    <div class="w-full">
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1 text-right">Test with user:</label>
+                                                        <select id="user-select-{{ instance_id }}" class="w-full text-xs border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-right" dir="rtl">
+                                                            {% if instance.users %}
+                                                                {% for user in instance.users %}
+                                                                    <option value="{{ user.username }}" {% if user.username == 'default_user' %}selected{% endif %}>
+                                                                        {{ user.username }}{% if user.username == 'default_user' %} (default){% endif %}
+                                                                    </option>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                                <option value="">No users configured</option>
+                                                            {% endif %}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center py-8 text-gray-500">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                        </svg>
+                                        <p class="mt-2">No GitHub instances configured</p>
+                                        <button type="button" onclick="addEndpoint('github')" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                            Add Your First Instance
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Jenkins Servers -->
+                        <div class="mb-8 pt-8 border-t border-gray-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Jenkins Servers</h3>
+                                <button type="button" onclick="addEndpoint('jenkins')" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    Add Server
+                                </button>
+                            </div>
+
+                            <div class="space-y-3">
+                                {% if config.jenkins and config.jenkins.urls %}
+                                    {% for url in config.jenkins.urls %}
+                                        <div class="endpoint-card">
+                                            <div class="flex items-start justify-between">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center space-x-3">
+                                                        <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                                        </svg>
+                                                        <h4 class="text-base font-medium text-gray-900">{{ url.split('//')[1].split('/')[0] if '//' in url else url }}</h4>
+                                                        <span class="status-badge unknown">Not Tested</span>
+                                                    </div>
+                                                    <p class="mt-1 text-sm text-gray-500">{{ url }}</p>
+                                                    <p class="mt-1 text-xs text-gray-400">User: {{ config.jenkins.user }}</p>
+                                                </div>
+                                                <div class="flex items-center space-x-2 ml-4">
+                                                    <button type="button" onclick="editEndpoint('jenkins', '{{ loop.index0 }}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                        </svg>
+                                                        Edit
+                                                    </button>
+                                                    <button type="button" onclick="testEndpoint('jenkins', '{{ loop.index0 }}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                        </svg>
+                                                        Test
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center py-8 text-gray-500">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
+                                        </svg>
+                                        <p class="mt-2">No Jenkins servers configured</p>
+                                        <button type="button" onclick="addEndpoint('jenkins')" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                            Add Your First Server
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Artifactory -->
+                        <div class="pt-8 border-t border-gray-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Artifactory</h3>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3">
+                                            <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            <h4 class="text-base font-medium text-gray-900">{{ config.artifactory.base if config.artifactory else 'Not configured' }}</h4>
+                                            <span class="status-badge unknown">Not Tested</span>
+                                        </div>
+                                        <p class="mt-1 text-xs text-gray-400">
+                                            {{ config.artifactory.virtual_repos|length if config.artifactory and config.artifactory.virtual_repos else 0 }} virtual repositories configured
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center space-x-2 ml-4">
+                                        <button type="button" onclick="editEndpoint('artifactory', 'main')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                            Edit
+                                        </button>
+                                        <button type="button" onclick="testEndpoint('artifactory', 'main')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Test
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Repositories Tab -->
+                    <div id="repositories-tab" class="tab-content">
+                        <div class="space-y-8">
+                            <!-- Virtual Repositories -->
+                            <div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-medium text-gray-900">Virtual Repositories</h3>
+                                    <button type="button" onclick="addVirtualRepo()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                        Add Entry
+                                    </button>
+                                </div>
+                                
+                                <form action="{{ url_for('update_repos_whitelist') }}" method="POST" id="repos-form">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Package Type</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repository Name</th>
+                                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="virtual-repos-table" class="bg-white divide-y divide-gray-200">
+                                                {% if config.artifactory and config.artifactory.virtual_repos %}
+                                                    {% for pkg_type, repo_name in config.artifactory.virtual_repos.items() %}
+                                                        <tr>
+                                                            <td class="px-4 py-3">
+                                                                <input type="text" name="repo_type[]" value="{{ pkg_type }}" 
+                                                                       class="block w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                                            </td>
+                                                            <td class="px-4 py-3">
+                                                                <input type="text" name="repo_name[]" value="{{ repo_name }}" 
+                                                                       class="block w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                                            </td>
+                                                            <td class="px-4 py-3 text-right">
+                                                                <button type="button" onclick="removeVirtualRepo(this)" class="text-red-600 hover:text-red-900 text-sm">
+                                                                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                                    </svg>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr id="no-repos-row">
+                                                        <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">
+                                                            No virtual repositories configured. Click "Add Entry" to create one.
+                                                        </td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <p class="mt-2 text-xs text-gray-500">
+                                        Configure approved virtual repositories for each package type (docker, npm, pypi, maven, etc.)
+                                    </p>
+                                    
+                                    <!-- Whitelist URLs -->
+                                    <div class="mt-8 pt-8 border-t border-gray-200">
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h3 class="text-lg font-medium text-gray-900">Whitelist URLs</h3>
+                                        </div>
+                                        
+                                        <div class="border border-gray-300 rounded-md p-3 bg-white">
+                                            <div id="whitelist-tags" class="flex flex-wrap gap-2 mb-2">
+                                                {% for url in config.whitelist_urls %}
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800">
+                                                        {{ url }}
+                                                        <button type="button" onclick="removeWhitelistUrl(this)" class="ml-2 text-indigo-600 hover:text-indigo-900">
+                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <input type="hidden" name="whitelist_url[]" value="{{ url }}">
+                                                    </span>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="flex">
+                                                <input type="text" id="new-whitelist-url" placeholder="Enter URL and press Enter..." 
+                                                       class="flex-1 px-3 py-2 text-sm border-0 focus:ring-0 focus:outline-none"
+                                                       onkeypress="handleWhitelistKeypress(event)">
+                                                <button type="button" onclick="addWhitelistUrl()" class="px-4 py-2 text-sm text-indigo-600 hover:text-indigo-900 font-medium">
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <p class="mt-2 text-xs text-gray-500">
+                                            Add URLs that will be allowed for dependency downloads. Press Enter or click Add to include.
+                                        </p>
+                                    </div>
+
+                                    <div class="mt-6 flex justify-end">
+                                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Save Configuration
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Tab -->
+                    <div id="advanced-tab" class="tab-content">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <p class="mt-2">Advanced settings coming soon</p>
+                            <p class="mt-1 text-sm">Future features: API keys, webhooks, integrations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Edit GitHub Instance -->
+    <div id="edit-github-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-lg font-medium text-gray-900" id="github-modal-title">Edit GitHub Instance</h3>
+                <button type="button" onclick="closeModal('edit-github-modal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="github-form" action="{{ url_for('update_endpoint') }}" method="POST" class="mt-4">
+                <input type="hidden" name="endpoint_type" value="github">
+                <input type="hidden" name="instance_id" id="github-instance-id">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="github-name" class="block text-sm font-medium text-gray-700">Instance Name</label>
+                        <input type="text" id="github-name" name="endpoint_name" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="github-url" class="block text-sm font-medium text-gray-700">API URL</label>
+                        <input type="text" id="github-url" name="endpoint_url" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="github-org" class="block text-sm font-medium text-gray-700">Organization</label>
+                        <input type="text" id="github-org" name="endpoint_org" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal('edit-github-modal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Manage Users -->
+    <div id="manage-users-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-lg font-medium text-gray-900" id="users-modal-title">Manage Users</h3>
+                <button type="button" onclick="closeModal('manage-users-modal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="mt-4">
+                <!-- Users Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Token</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Users will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Add User Form -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <h4 class="text-sm font-medium text-gray-900 mb-4">Add/Edit User</h4>
+                    <form id="user-form" action="{{ url_for('update_github_user') }}" method="POST" class="space-y-4">
+                        <input type="hidden" name="instance_id" id="user-instance-id">
+                        <input type="hidden" name="user_id" id="user-id">
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="user-username" class="block text-sm font-medium text-gray-700">Username</label>
+                                <input type="text" id="user-username" name="username" required
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                            
+                            <div>
+                                <label for="user-email" class="block text-sm font-medium text-gray-700">Email (optional)</label>
+                                <input type="email" id="user-email" name="email"
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="user-token" class="block text-sm font-medium text-gray-700">API Token (optional)</label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="password" id="user-token" name="token" placeholder="Leave blank to keep existing token"
+                                       class="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <button type="button" onclick="togglePasswordVisibility('user-token')" class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm">
+                                    Show
+                                </button>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">Token will be encrypted and stored securely in the configuration file.</p>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" onclick="clearUserForm()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Clear
+                            </button>
+                            <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                Save User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button type="button" onclick="closeModal('manage-users-modal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Jenkins -->
+    <div id="edit-jenkins-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-lg font-medium text-gray-900">Edit Jenkins Server</h3>
+                <button type="button" onclick="closeModal('edit-jenkins-modal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="jenkins-form" action="{{ url_for('update_endpoint') }}" method="POST" class="mt-4">
+                <input type="hidden" name="endpoint_type" value="jenkins">
+                <input type="hidden" name="instance_id" id="jenkins-instance-id">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="jenkins-url" class="block text-sm font-medium text-gray-700">Jenkins URL</label>
+                        <input type="text" id="jenkins-url" name="endpoint_url" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="jenkins-user" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="jenkins-user" name="endpoint_user" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="jenkins-token" class="block text-sm font-medium text-gray-700">API Token</label>
+                        <input type="password" id="jenkins-token" name="endpoint_token" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal('edit-jenkins-modal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Artifactory -->
+    <div id="edit-artifactory-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-lg font-medium text-gray-900">Edit Artifactory</h3>
+                <button type="button" onclick="closeModal('edit-artifactory-modal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="artifactory-form" action="{{ url_for('update_endpoint') }}" method="POST" class="mt-4">
+                <input type="hidden" name="endpoint_type" value="artifactory">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="artifactory-url" class="block text-sm font-medium text-gray-700">Base URL</label>
+                        <input type="text" id="artifactory-url" name="endpoint_url" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="artifactory-user" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="artifactory-user" name="endpoint_user" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="artifactory-token" class="block text-sm font-medium text-gray-700">API Token</label>
+                        <input type="password" id="artifactory-token" name="endpoint_token" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal('edit-artifactory-modal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to selected tab button
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        }
+
+        // Banner message management
+        function showBanner(message, type = 'success') {
+            const banner = document.getElementById('banner-message');
+            const content = document.getElementById('banner-content');
+            const icon = document.getElementById('banner-icon');
+            const text = document.getElementById('banner-text');
+            
+            // Set message
+            text.textContent = message;
+            
+            // Set styling based on type
+            if (type === 'success') {
+                content.className = 'rounded-md p-4 bg-green-50 text-green-800';
+                icon.className = 'h-5 w-5 text-green-400';
+                icon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>';
+            } else if (type === 'error') {
+                content.className = 'rounded-md p-4 bg-red-50 text-red-800';
+                icon.className = 'h-5 w-5 text-red-400';
+                icon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>';
+            }
+            
+            // Show banner
+            banner.classList.remove('hidden');
+            
+            // Scroll to top to show banner
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                hideBanner();
+            }, 5000);
+        }
+        
+        function hideBanner() {
+            document.getElementById('banner-message').classList.add('hidden');
+        }
+
+        // Modal management
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            if (event.target.classList.contains('bg-opacity-50')) {
+                event.target.classList.add('hidden');
+            }
+        }
+
+        // Endpoint management functions
+        function addEndpoint(type) {
+            if (type === 'github') {
+                document.getElementById('github-modal-title').textContent = 'Add GitHub Instance';
+                document.getElementById('github-instance-id').value = '';
+                document.getElementById('github-name').value = '';
+                document.getElementById('github-url').value = 'https://api.github.com';
+                document.getElementById('github-org').value = '';
+                openModal('edit-github-modal');
+            } else if (type === 'jenkins') {
+                document.getElementById('jenkins-instance-id').value = '';
+                document.getElementById('jenkins-url').value = '';
+                document.getElementById('jenkins-user').value = '';
+                document.getElementById('jenkins-token').value = '';
+                openModal('edit-jenkins-modal');
+            } else if (type === 'artifactory') {
+                openModal('edit-artifactory-modal');
+            }
+        }
+
+        function editEndpoint(type, id) {
+            if (type === 'github') {
+                document.getElementById('github-modal-title').textContent = 'Edit GitHub Instance';
+                document.getElementById('github-instance-id').value = id;
+                // Load existing data
+                fetch(`/api/endpoint/${type}/${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('github-name').value = data.name || '';
+                        document.getElementById('github-url').value = data.api_url || '';
+                        document.getElementById('github-org').value = data.org || '';
+                    })
+                    .catch(error => console.error('Error loading endpoint:', error));
+                openModal('edit-github-modal');
+            } else if (type === 'jenkins') {
+                document.getElementById('jenkins-instance-id').value = id;
+                // Load existing data
+                fetch(`/api/endpoint/${type}/${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('jenkins-url').value = data.url || '';
+                            document.getElementById('jenkins-user').value = data.user || '';
+                        }
+                    })
+                    .catch(error => console.error('Error loading endpoint:', error));
+                openModal('edit-jenkins-modal');
+            } else if (type === 'artifactory') {
+                fetch(`/api/endpoint/${type}/${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('artifactory-url').value = data.base || '';
+                        document.getElementById('artifactory-user').value = data.user || '';
+                    })
+                    .catch(error => console.error('Error loading endpoint:', error));
+                openModal('edit-artifactory-modal');
+            }
+        }
+
+        function testEndpoint(type, id) {
+            const button = event.target.closest('button');
+            const card = button.closest('.endpoint-card');
+            const statusBadge = card.querySelector('.status-badge');
+            const statusIcon = card.querySelector('svg');
+            const originalText = button.innerHTML;
+            
+            // Get selected username for GitHub endpoints
+            let username = '';
+            if (type === 'github') {
+                const userSelect = document.getElementById(`user-select-${id}`);
+                if (userSelect) {
+                    username = userSelect.value;
+                }
+            }
+            
+            button.innerHTML = '<svg class="animate-spin h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Testing...';
+            button.disabled = true;
+            statusBadge.textContent = 'Testing...';
+            statusBadge.className = 'status-badge unknown';
+            
+            const requestBody = {type: type, instance_id: id};
+            if (username) {
+                requestBody.username = username;
+            }
+            
+            fetch('/test-endpoint', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+                
+                if (data.success) {
+                    statusBadge.textContent = 'Connected';
+                    statusBadge.className = 'status-badge connected';
+                    statusIcon.classList.remove('text-gray-400', 'text-red-500');
+                    statusIcon.classList.add('text-green-500');
+                    statusIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>';
+                    
+                    let message = 'Connection successful! ' + (data.message || 'Endpoint is reachable.');
+                    if (username && type === 'github') {
+                        message += ' (Tested with user: ' + username + ')';
+                    }
+                    showBanner(message, 'success');
+                } else {
+                    statusBadge.textContent = 'Failed';
+                    statusBadge.className = 'status-badge disconnected';
+                    statusIcon.classList.remove('text-gray-400', 'text-green-500');
+                    statusIcon.classList.add('text-red-500');
+                    statusIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>';
+                    
+                    let errorMessage = 'Connection failed! ' + (data.error || data.message || 'Unknown error');
+                    if (username && type === 'github') {
+                        errorMessage += ' (Tested with user: ' + username + ')';
+                    }
+                    showBanner(errorMessage, 'error');
+                }
+            })
+            .catch(error => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+                statusBadge.textContent = 'Error';
+                statusBadge.className = 'status-badge disconnected';
+                statusIcon.classList.remove('text-gray-400', 'text-green-500');
+                statusIcon.classList.add('text-red-500');
+                showBanner('Test failed: ' + error.message, 'error');
+            });
+        }
+
+        function manageUsers(instanceId) {
+            document.getElementById('user-instance-id').value = instanceId;
+            document.getElementById('users-modal-title').textContent = `Manage Users - ${instanceId}`;
+            
+            // Load users for this instance
+            fetch(`/api/github-users/${instanceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Users data received:', data);  // Debug logging
+                    const tbody = document.getElementById('users-table-body');
+                    tbody.innerHTML = '';
+                    
+                    if (data.success && data.users && data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td class="px-4 py-3 text-sm text-gray-900">${user.username}</td>
+                                <td class="px-4 py-3 text-sm text-gray-500">${user.email || '-'}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                        Set
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-right space-x-2">
+                                    <button onclick="editUser('${instanceId}', '${user.username}')" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                                    <button onclick="deleteUser('${instanceId}', '${user.username}')" class="text-red-600 hover:text-red-900">Delete</button>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        console.log('No users found or error:', data);  // Debug logging
+                        tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">No users configured. Add a user below to get started.</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading users:', error);
+                    const tbody = document.getElementById('users-table-body');
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-sm text-red-500">Error loading users. Check console for details.</td></tr>';
+                });
+            
+            clearUserForm();
+            openModal('manage-users-modal');
+        }
+
+        function editUser(instanceId, username) {
+            fetch(`/api/github-user/${instanceId}/${username}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('user-id').value = username;
+                    document.getElementById('user-username').value = data.username || '';
+                    document.getElementById('user-email').value = data.email || '';
+                    
+                    // Show token hint if token exists
+                    const tokenInput = document.getElementById('user-token');
+                    if (data.token_hint) {
+                        tokenInput.placeholder = `Current: ${data.token_hint} (leave blank to keep)`;
+                        tokenInput.value = '';
+                    } else {
+                        tokenInput.placeholder = 'Enter API token';
+                        tokenInput.value = '';
+                    }
+                })
+                .catch(error => console.error('Error loading user:', error));
+        }
+
+        function deleteUser(instanceId, username) {
+            if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+                fetch(`/api/github-user/${instanceId}/${username}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        manageUsers(instanceId); // Reload the user list
+                        showBanner('User deleted successfully', 'success');
+                    } else {
+                        showBanner('Error deleting user: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => showBanner('Error deleting user: ' + error.message, 'error'));
+            }
+        }
+
+        function clearUserForm() {
+            document.getElementById('user-id').value = '';
+            document.getElementById('user-username').value = '';
+            document.getElementById('user-email').value = '';
+            document.getElementById('user-token').value = '';
+        }
+
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const button = event.target.closest('button');
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                button.textContent = 'Show';
+            }
+        }
+
+        // Virtual Repos Table Management
+        function addVirtualRepo() {
+            const tbody = document.getElementById('virtual-repos-table');
+            const noReposRow = document.getElementById('no-repos-row');
+            
+            if (noReposRow) {
+                noReposRow.remove();
+            }
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-4 py-3">
+                    <input type="text" name="repo_type[]" placeholder="e.g., docker" 
+                           class="block w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </td>
+                <td class="px-4 py-3">
+                    <input type="text" name="repo_name[]" placeholder="e.g., isgedge-docker-virtual" 
+                           class="block w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <button type="button" onclick="removeVirtualRepo(this)" class="text-red-600 hover:text-red-900 text-sm">
+                        <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+            
+            // Focus on the first input
+            row.querySelector('input').focus();
+        }
+
+        function removeVirtualRepo(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('virtual-repos-table');
+            
+            row.remove();
+            
+            // If no rows left, show empty message
+            if (tbody.querySelectorAll('tr').length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.id = 'no-repos-row';
+                emptyRow.innerHTML = '<td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">No virtual repositories configured. Click "Add Entry" to create one.</td>';
+                tbody.appendChild(emptyRow);
+            }
+        }
+
+        // Whitelist URL Tag Management
+        function addWhitelistUrl() {
+            const input = document.getElementById('new-whitelist-url');
+            const url = input.value.trim();
+            
+            if (!url) {
+                return;
+            }
+            
+            // Check for duplicates
+            const existingTags = document.querySelectorAll('#whitelist-tags input[type="hidden"]');
+            for (const tag of existingTags) {
+                if (tag.value === url) {
+                    showBanner('This URL is already in the whitelist', 'error');
+                    input.value = '';
+                    return;
+                }
+            }
+            
+            // Create tag
+            const tagsContainer = document.getElementById('whitelist-tags');
+            const tag = document.createElement('span');
+            tag.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800';
+            tag.innerHTML = `
+                ${url}
+                <button type="button" onclick="removeWhitelistUrl(this)" class="ml-2 text-indigo-600 hover:text-indigo-900">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+                <input type="hidden" name="whitelist_url[]" value="${url}">
+            `;
+            tagsContainer.appendChild(tag);
+            
+            // Clear input
+            input.value = '';
+            input.focus();
+        }
+
+        function removeWhitelistUrl(button) {
+            const tag = button.closest('span');
+            tag.remove();
+        }
+
+        function handleWhitelistKeypress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addWhitelistUrl();
+            }
+        }
+
+        // Toggle debug switch with visual feedback
+        function toggleDebugSwitch(checkbox) {
+            const sliderBg = checkbox.nextElementSibling;
+            const sliderDot = sliderBg.querySelector('.toggle-slider-dot');
+            
+            if (checkbox.checked) {
+                sliderBg.classList.remove('bg-gray-300');
+                sliderBg.classList.add('bg-indigo-600');
+                sliderDot.classList.add('transform', 'translate-x-5');
+            } else {
+                sliderBg.classList.remove('bg-indigo-600');
+                sliderBg.classList.add('bg-gray-300');
+                sliderDot.classList.remove('transform', 'translate-x-5');
+            }
+            
+            // Submit form after visual update
+            setTimeout(() => {
+                document.getElementById('quick-settings-form').submit();
+            }, 200);
+        }
+    </script>
+</body>
+</html>

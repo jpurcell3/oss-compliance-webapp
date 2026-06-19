@@ -1,0 +1,80 @@
+{
+  "generated_at": 1781724542,
+  "results": [
+    {
+      "repo": "fusion-stage",
+      "success": true,
+      "total_components": 264,
+      "compliant_components": 187,
+      "unconfirmed_components": 0,
+      "non_compliant_components": 77,
+      "compliance_pct": 70.83,
+      "findings_total": 3,
+      "findings_runtime_compliant": 2,
+      "endpoint_by_type": {
+        "direct_public": 77,
+        "translated": 187
+      },
+      "endpoint_total_configurations": 0,
+      "runtime_counts": {
+        "docker": 0,
+        "go": 0,
+        "maven": 0,
+        "npm": 3,
+        "pip": 15
+      },
+      "checks_passed": true,
+      "check_failures": []
+    },
+    {
+      "repo": "dsp-catalog-svc",
+      "success": true,
+      "total_components": 274,
+      "compliant_components": 9,
+      "unconfirmed_components": 0,
+      "non_compliant_components": 265,
+      "compliance_pct": 3.28,
+      "findings_total": 270,
+      "findings_runtime_compliant": 0,
+      "endpoint_by_type": {
+        "direct_public": 271,
+        "translated": 3
+      },
+      "endpoint_total_configurations": 9,
+      "runtime_counts": {
+        "docker": 0,
+        "go": 0,
+        "maven": 0,
+        "npm": 0,
+        "pip": 0
+      },
+      "checks_passed": true,
+      "check_failures": []
+    },
+    {
+      "repo": "dap-catalog-workflows",
+      "success": true,
+      "total_components": 12,
+      "compliant_components": 12,
+      "unconfirmed_components": 0,
+      "non_compliant_components": 0,
+      "compliance_pct": 100.0,
+      "findings_total": 2,
+      "findings_runtime_compliant": 1,
+      "endpoint_by_type": {
+        "direct_public": 0,
+        "translated": 12
+      },
+      "endpoint_total_configurations": 0,
+      "runtime_counts": {
+        "docker": 0,
+        "go": 0,
+        "maven": 0,
+        "npm": 0,
+        "pip": 105
+      },
+      "checks_passed": true,
+      "check_failures": []
+    }
+  ]
+}

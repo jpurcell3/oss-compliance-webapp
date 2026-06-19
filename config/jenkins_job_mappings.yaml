@@ -1,0 +1,22 @@
+# Jenkins Job Mappings Configuration
+# 
+# Use this file to manually map repositories to Jenkins jobs when automatic
+# discovery fails or when job names don't match repository names.
+#
+# Format:
+#   repository-name:
+#     - "Jenkins-Job-Name-1"
+#     - "Jenkins-Job-Name-2"
+#
+# Example:
+#   dsp-catalog-svc:
+#     - "DSP-Catalog-Service"
+#     - "catalog-service-multibranch"
+#   fusion-stage:
+#     - "fusion-stage"
+#     - "Stage-UI-System-Test-Services"
+
+jenkins_job_mappings:
+  # Add your manual mappings here
+  # dsp-catalog-svc:
+  #   - "actual-jenkins-job-name"

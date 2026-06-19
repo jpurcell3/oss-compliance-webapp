@@ -1,0 +1,65 @@
+# OSS Compliance Web Application Configuration
+# Version: 1.0
+# Last Updated: 2026-06-12
+
+# Application metadata
+version: "1.0"
+
+# Artifactory configuration
+artifactory:
+  base_url: "isgedge.artifactory.cec.lab.emc.com"
+  virtual_repos:
+    docker: "isgedge-docker-virtual"
+    go: "isgedge-go-virtual"
+    helm: "isgedge-helm-virtual"
+    maven: "isgedge-maven-virtual"
+    npm: "isgedge-npm-virtual"
+    pypi: "isgedge-pypi-virtual"
+    rpm: "isgedge-rpm-virtual"
+    factoryos: "isgedge-factoryos-virtual"
+    debian: "isgedge-manufacturing-debian-virtual"
+
+# GitHub instances configuration
+# Tokens are stored in GITHUB_INSTANCE_*_USERS environment variables (legacy JSON format)
+# Or use token_env to reference individual environment variables
+github_instances:
+  eos2git:
+    name: "ISG-Edge"
+    api_url: "https://eos2git.cec.lab.emc.com/api/v3"
+    org: "ISG-Edge"
+    users:
+      - username: "default_user"
+        token_env: "GITHUB_TOKEN"
+        email: ""
+      - username: "jpurcell"
+        token_env: "GITHUB_TOKEN"
+        email: ""
+  
+  github:
+    name: "Fusion-e"
+    api_url: "https://api.github.com"
+    org: "Fusion-e"
+    users:
+      - username: "default_user"
+        token_env: "GITHUB_TOKEN"
+        email: ""
+
+# Jenkins configuration
+jenkins:
+  user: "jenkins-user"
+  token_env: "JENKINS_API_TOKEN"
+  urls:
+    - "https://jenkins.example.com"
+  pr_validation_job: "oss-compliance-validation"
+
+# Whitelist URLs (URLs that are allowed even if not through Artifactory)
+whitelist_urls:
+  - "https://github.com"
+  - "https://gitlab.com"
+  - "https://bitbucket.org"
+
+# Application settings
+app_settings:
+  max_scan_threads: 4
+  cache_ttl_hours: 1
+  report_retention_days: 90

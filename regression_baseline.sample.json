@@ -1,0 +1,17 @@
+{
+  "fusion-stage": {
+    "min_compliant_components": 187,
+    "max_non_compliant_components": 0,
+    "require_runtime_package_managers": ["npm"]
+  },
+  "dsp-catalog-svc": {
+    "min_compliant_components": 0,
+    "max_non_compliant_components": 300,
+    "require_runtime_package_managers": []
+  },
+  "dap-catalog-workflows": {
+    "min_compliant_components": 0,
+    "max_non_compliant_components": 999999,
+    "require_runtime_package_managers": ["pip"]
+  }
+}

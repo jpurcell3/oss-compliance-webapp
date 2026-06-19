@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration - OSS Compliance Verification</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline/index.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">OSS Compliance Verification</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="{{ url_for('list_reports') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Reports</a>
+                    <a href="{{ url_for('config') }}" class="text-indigo-700 hover:text-indigo-900 px-3 py-2 rounded-md text-sm font-medium">Configuration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mb-6">
+                        {% for category, message in messages %}
+                            <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800{% else %}bg-green-50 text-green-800{% endif %}">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        {% if category == 'error' %}
+                                            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                            </svg>
+                                        {% else %}
+                                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            </svg>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium">{{ message }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- GitHub Instances -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">GitHub Configuration</h3>
+                            <button type="button" onclick="testSelectedGitHubCredentials()" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Test Credentials
+                            </button>
+                        </div>
+                        <div id="github-test-result" class="mb-4 hidden"></div>
+                        
+                        <form action="{{ url_for('update_github_config') }}" method="POST" class="space-y-4">
+                            <!-- GitHub Instance Selection (read-only from .env) -->
+                            <div>
+                                <label for="github_org_select" class="block text-sm font-medium text-gray-700">GitHub Instance</label>
+                                <select id="github_org_select" name="github_org" 
+                                        class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-100"
+                                        onchange="loadGitHubUsers()">
+                                    <option value="">-- Select Instance --</option>
+                                    {% if config.github_instances %}
+                                        {% for instance_id, instance_config in config.github_instances.items() %}
+                                            <option value="{{ instance_id }}" 
+                                                    data-name="{{ instance_config.name }}"
+                                                    data-api-url="{{ instance_config.api_url }}">
+                                                {{ instance_config.name }}
+                                            </option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500">Instances are configured in .env file</p>
+                            </div>
+                            
+                            <!-- Instance Details (hidden, populated by JS) -->
+                            <input type="hidden" id="github_org_name" name="github_org_name">
+                            <input type="hidden" id="github_api_url" name="github_api_url">
+                            
+                            <!-- User Selection -->
+                            <div>
+                                <label for="github_user_select" class="block text-sm font-medium text-gray-700">User</label>
+                                <select id="github_user_select" name="github_user" 
+                                        class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                        onchange="loadGitHubUserCredentials()" disabled>
+                                    <option value="">-- Select Instance First --</option>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500">Default user is used for scans. Additional users can be used for PR submissions.</p>
+                            </div>
+                            
+                            <!-- User Credentials -->
+                            <div id="github_user_credentials" class="hidden space-y-4 p-4 bg-gray-50 rounded-md">
+                                <div>
+                                    <label for="github_token" class="block text-sm font-medium text-gray-700">Personal Access Token</label>
+                                    <input type="password" id="github_token" name="github_token" 
+                                           class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                           placeholder="ghp_...">
+                                </div>
+                                <div>
+                                    <label for="github_email" class="block text-sm font-medium text-gray-700">Email (optional)</label>
+                                    <input type="email" id="github_email" name="github_email" 
+                                           class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                           placeholder="user@example.com">
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div class="flex space-x-2">
+                                    <button type="button" onclick="saveGitHubUserCredentials()" 
+                                            class="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700">
+                                        Save User Credentials
+                                    </button>
+                                    <button type="button" onclick="deleteGitHubUser()" 
+                                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                        Delete User
+                                    </button>
+                                    <button type="button" onclick="clearGitHubUserForm()" 
+                                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Add New User Button -->
+                            <div>
+                                <button type="button" onclick="showAddGitHubUser()" 
+                                        class="inline-flex items-center px-3 py-2 border border-dashed border-gray-300 text-xs font-medium rounded text-gray-600 bg-white hover:bg-gray-50">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    Add New User
+                                </button>
+                            </div>
+                            
+                            <!-- Add New User Form (hidden by default) -->
+                            <div id="add_github_user_form" class="hidden space-y-4 p-4 bg-blue-50 rounded-md border border-blue-200">
+                                <h4 class="text-sm font-medium text-blue-800">Add New User</h4>
+                                <div>
+                                    <label for="new_github_username" class="block text-sm font-medium text-gray-700">Username</label>
+                                    <input type="text" id="new_github_username" 
+                                           class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                           placeholder="github-username">
+                                </div>
+                                <div>
+                                    <label for="new_github_token" class="block text-sm font-medium text-gray-700">Personal Access Token</label>
+                                    <input type="password" id="new_github_token" 
+                                           class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                           placeholder="ghp_...">
+                                </div>
+                                <div>
+                                    <label for="new_github_email" class="block text-sm font-medium text-gray-700">Email (optional)</label>
+                                    <input type="email" id="new_github_email" 
+                                           class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                           placeholder="user@example.com">
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button type="button" onclick="addGitHubUser()" 
+                                            class="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700">
+                                        Add User
+                                    </button>
+                                    <button type="button" onclick="hideAddGitHubUser()" 
+                                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Jenkins Configuration -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">Jenkins Configuration</h3>
+                            <button type="button" onclick="testJenkinsCredentials()" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Test Credentials
+                            </button>
+                        </div>
+                        <div id="jenkins-test-result" class="mb-4 hidden"></div>
+                        <form action="{{ url_for('update_jenkins_config') }}" method="POST" class="space-y-4">
+                            <div>
+                                <label for="jenkins_user" class="block text-sm font-medium text-gray-700">Jenkins User</label>
+                                <input type="text" name="jenkins_user" id="jenkins_user" value="{{ config.jenkins.user or '' }}"
+                                       class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                            </div>
+                            <div>
+                                <label for="jenkins_token" class="block text-sm font-medium text-gray-700">Jenkins Token/Password</label>
+                                <input type="password" name="jenkins_token" id="jenkins_token" 
+                                       class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                       placeholder="Enter new token (leave blank to keep existing)">
+                                <input type="hidden" id="jenkins_token_stored" value="{{ config.jenkins.token or '' }}">
+                            </div>
+                            <div>
+                                <label for="jenkins_urls" class="block text-sm font-medium text-gray-700">Jenkins URLs (comma-separated)</label>
+                                <input type="text" name="jenkins_urls" id="jenkins_urls" 
+                                       value="{{ config.jenkins.urls | join(', ') if config.jenkins.urls else '' }}"
+                                       class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                       placeholder="https://jenkins1.example.com, https://jenkins2.example.com">
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Update Jenkins Config
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Artifactory Configuration -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">Artifactory Configuration</h3>
+                            <button type="button" onclick="testArtifactoryCredentials()" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Test Connection
+                            </button>
+                        </div>
+                        <div id="artifactory-test-result" class="mb-4 hidden"></div>
+                        <form action="{{ url_for('update_artifactory_config') }}" method="POST" class="space-y-4">
+                            <div>
+                                <label for="artifactory_base" class="block text-sm font-medium text-gray-700">Artifactory Base URL</label>
+                                <input type="text" name="artifactory_base" id="artifactory_base" value="{{ config.artifactory.base }}"
+                                       class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                            </div>
+                            <div>
+                                <label for="artifactory_token" class="block text-sm font-medium text-gray-700">Artifactory Token (optional)</label>
+                                <input type="password" name="artifactory_token" id="artifactory_token" 
+                                       class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                       placeholder="Enter new token (leave blank to keep existing)">
+                            </div>
+                            <div>
+                                <label for="virtual_repos" class="block text-sm font-medium text-gray-700">Virtual Repositories (JSON)</label>
+                                <textarea name="virtual_repos" id="virtual_repos" rows="4" 
+                                          class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md font-mono text-xs">{{ config.artifactory.virtual_repos | tojson(indent=2) if config.artifactory.virtual_repos else '{}' }}</textarea>
+                                <p class="mt-1 text-xs text-gray-500">Enter virtual repositories as JSON. Format: {"docker": "repo-name", "helm": "repo-name", ...}</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Update Artifactory Config
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Whitelist URLs -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Whitelist URLs</h3>
+                        <form action="{{ url_for('update_whitelist_config') }}" method="POST" class="space-y-4">
+                            <div>
+                                <label for="whitelist_urls" class="block text-sm font-medium text-gray-700">Whitelist URLs (one per line)</label>
+                                <textarea name="whitelist_urls" id="whitelist_urls" rows="4" 
+                                          class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md font-mono text-xs">{% for url in config.whitelist_urls %}{{ url }}
+{% endfor %}</textarea>
+                                <p class="mt-1 text-xs text-gray-500">Enter one URL per line. These URLs will be whitelisted for OSS compliance checks.</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Update Whitelist
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            
+
+            <!-- Back to Home -->
+            <div class="mt-6">
+                <a href="{{ url_for('index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Home
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // GitHub configuration data
+        let githubConfigData = {{ config.github_instances | tojson }};
+        let currentInstanceId = null;
+        let currentUsername = null;
+
+        // Helper function to display test results
+        function displayTestResult(resultDiv, data, error) {
+            resultDiv.classList.remove('hidden');
+            
+            if (error) {
+                resultDiv.innerHTML = `
+                    <div class="rounded-md p-3 bg-red-50 border border-red-200">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-red-800">Request failed: ${error.message}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (data.success) {
+                let detailsHtml = '';
+                if (data.details) {
+                    if (typeof data.details === 'object') {
+                        detailsHtml = '<div class="mt-2 text-xs text-gray-600">';
+                        for (const [key, value] of Object.entries(data.details)) {
+                            detailsHtml += `<p><span class="font-medium">${key}:</span> ${value}</p>`;
+                        }
+                        detailsHtml += '</div>';
+                    } else {
+                        detailsHtml = `<p class="mt-1 text-xs text-gray-600">${data.details}</p>`;
+                    }
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="rounded-md p-3 bg-green-50 border border-green-200">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-green-800">${data.message}</p>
+                                ${data.status_code ? `<p class="text-xs text-green-700 mt-1">Status: ${data.status_code}</p>` : ''}
+                                ${data.response_time ? `<p class="text-xs text-green-700">Response time: ${data.response_time}s</p>` : ''}
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="rounded-md p-3 bg-red-50 border border-red-200">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-red-800">${data.error}</p>
+                                ${data.message ? `<p class="text-xs text-red-700 mt-1">${data.message}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load GitHub users for selected instance
+        function loadGitHubUsers() {
+            const orgSelect = document.getElementById('github_org_select');
+            const userSelect = document.getElementById('github_user_select');
+            const selectedOption = orgSelect.options[orgSelect.selectedIndex];
+            
+            currentInstanceId = orgSelect.value;
+            
+            // Clear user dropdown
+            userSelect.innerHTML = '<option value="">-- Select User --</option>';
+            userSelect.disabled = !currentInstanceId;
+            
+            // Hide user credentials form
+            document.getElementById('github_user_credentials').classList.add('hidden');
+            
+            if (!currentInstanceId) return;
+            
+            // Populate hidden fields
+            document.getElementById('github_org_name').value = selectedOption.getAttribute('data-name');
+            document.getElementById('github_api_url').value = selectedOption.getAttribute('data-api-url');
+            
+            // Get users for this instance (handle both old and new data structures)
+            const orgConfig = githubConfigData[currentInstanceId];
+            let users = {};
+            
+            if (orgConfig) {
+                if (orgConfig.users) {
+                    // New structure with users object
+                    users = orgConfig.users;
+                } else if (orgConfig.token) {
+                    // Old structure - convert to new format
+                    const username = 'default_user';
+                    users = {
+                        [username]: {
+                            token: orgConfig.token,
+                            email: orgConfig.email || ''
+                        }
+                    };
+                    // Update config to new structure
+                    orgConfig.users = users;
+                    delete orgConfig.token;
+                    delete orgConfig.org;
+                }
+            }
+            
+            // Populate user dropdown
+            Object.keys(users).forEach(username => {
+                const option = document.createElement('option');
+                option.value = username;
+                option.textContent = username;
+                userSelect.appendChild(option);
+            });
+        }
+
+        // Load selected user's credentials
+        function loadGitHubUserCredentials() {
+            const userSelect = document.getElementById('github_user_select');
+            const credentialsDiv = document.getElementById('github_user_credentials');
+            
+            currentUsername = userSelect.value;
+            
+            if (!currentUsername || !currentInstanceId) {
+                credentialsDiv.classList.add('hidden');
+                return;
+            }
+            
+            const orgConfig = githubConfigData[currentInstanceId];
+            if (!orgConfig || !orgConfig.users || !orgConfig.users[currentUsername]) {
+                credentialsDiv.classList.add('hidden');
+                return;
+            }
+            
+            const userData = orgConfig.users[currentUsername];
+            
+            // Populate form fields
+            document.getElementById('github_token').value = userData.token || '';
+            document.getElementById('github_email').value = userData.email || '';
+            
+            credentialsDiv.classList.remove('hidden');
+        }
+
+        // Save GitHub user credentials
+        async function saveGitHubUserCredentials() {
+            if (!currentInstanceId || !currentUsername) {
+                alert('Please select an instance and user first');
+                return;
+            }
+            
+            const token = document.getElementById('github_token').value;
+            const email = document.getElementById('github_email').value;
+            
+            if (!token) {
+                alert('Token is required');
+                return;
+            }
+            
+            // Update local config
+            if (!githubConfigData[currentInstanceId].users) {
+                githubConfigData[currentInstanceId].users = {};
+            }
+            
+            githubConfigData[currentInstanceId].users[currentUsername] = {
+                token: token,
+                email: email
+            };
+            
+            // Save to server
+            try {
+                const response = await fetch('{{ url_for("update_github_config") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        github_instances: githubConfigData
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('User credentials saved successfully');
+                } else {
+                    alert('Error saving credentials: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error saving credentials: ' + error.message);
+            }
+        }
+
+        // Delete GitHub user
+        async function deleteGitHubUser() {
+            if (!currentInstanceId || !currentUsername) {
+                alert('Please select an instance and user first');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to delete this user?')) {
+                return;
+            }
+            
+            // Update local config
+            delete githubConfigData[currentInstanceId].users[currentUsername];
+            
+            // Save to server
+            try {
+                const response = await fetch('{{ url_for("update_github_config") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        github_instances: githubConfigData
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('User deleted successfully');
+                    // Reload users
+                    loadGitHubUsers();
+                    document.getElementById('github_user_credentials').classList.add('hidden');
+                } else {
+                    alert('Error deleting user: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting user: ' + error.message);
+            }
+        }
+
+        // Clear user form
+        function clearGitHubUserForm() {
+            document.getElementById('github_token').value = '';
+            document.getElementById('github_email').value = '';
+        }
+
+        // Show add user form
+        function showAddGitHubUser() {
+            if (!currentInstanceId) {
+                alert('Please select a GitHub instance first');
+                return;
+            }
+            document.getElementById('add_github_user_form').classList.remove('hidden');
+        }
+
+        // Hide add user form
+        function hideAddGitHubUser() {
+            document.getElementById('add_github_user_form').classList.add('hidden');
+            document.getElementById('new_github_username').value = '';
+            document.getElementById('new_github_token').value = '';
+            document.getElementById('new_github_email').value = '';
+        }
+
+        // Add new GitHub user
+        async function addGitHubUser() {
+            const username = document.getElementById('new_github_username').value.trim();
+            const token = document.getElementById('new_github_token').value;
+            const email = document.getElementById('new_github_email').value;
+            
+            if (!username) {
+                alert('Username is required');
+                return;
+            }
+            
+            if (!token) {
+                alert('Token is required');
+                return;
+            }
+            
+            // Check if user already exists
+            if (githubConfigData[currentInstanceId].users && githubConfigData[currentInstanceId].users[username]) {
+                alert('User already exists');
+                return;
+            }
+            
+            // Update local config
+            if (!githubConfigData[currentInstanceId].users) {
+                githubConfigData[currentInstanceId].users = {};
+            }
+            
+            githubConfigData[currentInstanceId].users[username] = {
+                token: token,
+                email: email
+            };
+            
+            // Save to server
+            try {
+                const response = await fetch('{{ url_for("update_github_config") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        github_instances: githubConfigData
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('User added successfully');
+                    hideAddGitHubUser();
+                    // Reload users
+                    loadGitHubUsers();
+                    // Select the new user
+                    document.getElementById('github_user_select').value = username;
+                    loadGitHubUserCredentials();
+                } else {
+                    alert('Error adding user: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error adding user: ' + error.message);
+            }
+        }
+
+        // Test selected GitHub credentials
+        async function testSelectedGitHubCredentials() {
+            const resultDiv = document.getElementById('github-test-result');
+            
+            if (!currentInstanceId) {
+                displayTestResult(resultDiv, {success: false, error: 'Please select a GitHub instance first'}, null);
+                return;
+            }
+            
+            const orgConfig = githubConfigData[currentInstanceId];
+            let apiUrl = orgConfig.api_url;
+            let token = null;
+            
+            // Build the proper API URL for testing
+            // Ensure URL doesn't end with trailing slash
+            apiUrl = apiUrl.replace(/\/$/, '');
+            // Append /user endpoint for authentication testing
+            const testUrl = `${apiUrl}/user`;
+            
+            // Try to get token from selected user, or first available user
+            if (currentUsername && orgConfig.users && orgConfig.users[currentUsername]) {
+                token = orgConfig.users[currentUsername].token;
+            } else if (orgConfig.users && Object.keys(orgConfig.users).length > 0) {
+                const firstUser = Object.keys(orgConfig.users)[0];
+                token = orgConfig.users[firstUser].token;
+            }
+            
+            if (!apiUrl) {
+                displayTestResult(resultDiv, {success: false, error: 'GitHub instance missing API URL'}, null);
+                return;
+            }
+            
+            if (!token) {
+                displayTestResult(resultDiv, {success: false, error: 'No credentials available. Please add or select a user with credentials.'}, null);
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p class="text-sm text-blue-600">Testing GitHub credentials...</p>';
+            resultDiv.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('{{ url_for("test_endpoint") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'github',
+                        url: testUrl,
+                        token: token
+                    })
+                });
+                
+                const data = await response.json();
+                displayTestResult(resultDiv, data, null);
+            } catch (error) {
+                displayTestResult(resultDiv, null, error);
+            }
+        }
+
+        // Test Jenkins credentials from configured values
+        async function testJenkinsCredentials() {
+            const resultDiv = document.getElementById('jenkins-test-result');
+            const jenkinsUser = document.getElementById('jenkins_user').value;
+            const jenkinsUrls = document.getElementById('jenkins_urls').value;
+            const jenkinsToken = document.getElementById('jenkins_token').value || document.getElementById('jenkins_token_stored').value;
+            
+            if (!jenkinsUser || !jenkinsUrls) {
+                displayTestResult(resultDiv, {success: false, error: 'Jenkins user and URLs must be configured first'}, null);
+                return;
+            }
+            
+            if (!jenkinsToken) {
+                displayTestResult(resultDiv, {success: false, error: 'Jenkins token must be configured first'}, null);
+                return;
+            }
+            
+            const url = jenkinsUrls.split(',')[0].trim();
+            resultDiv.innerHTML = '<p class="text-sm text-blue-600">Testing Jenkins credentials...</p>';
+            resultDiv.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('{{ url_for("test_endpoint") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'jenkins',
+                        url: url,
+                        username: jenkinsUser,
+                        token: jenkinsToken
+                    })
+                });
+                
+                const data = await response.json();
+                displayTestResult(resultDiv, data, null);
+            } catch (error) {
+                displayTestResult(resultDiv, null, error);
+            }
+        }
+
+        // Test Artifactory connection
+        async function testArtifactoryCredentials() {
+            const resultDiv = document.getElementById('artifactory-test-result');
+            const artifactoryBase = document.getElementById('artifactory_base').value;
+            
+            if (!artifactoryBase) {
+                displayTestResult(resultDiv, {success: false, error: 'Artifactory base URL must be configured first'}, null);
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p class="text-sm text-blue-600">Testing Artifactory connection...</p>';
+            resultDiv.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('{{ url_for("test_endpoint") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'artifactory',
+                        url: artifactoryBase,
+                        token: document.getElementById('artifactory_token').value || ''
+                    })
+                });
+                
+                const data = await response.json();
+                displayTestResult(resultDiv, data, null);
+            } catch (error) {
+                displayTestResult(resultDiv, null, error);
+            }
+        }
+    </script>
+</body>
+</html>

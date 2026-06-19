@@ -1,0 +1,78 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files
+test_*.py
+*_test.py
+tests/
+.pytest_cache/
+
+# Documentation (included in docs/)
+*.md
+!README.md
+
+# Environment files (mounted as volume)
+.env
+.env.backup
+.env.local
+.env.*.local
+
+# Reports and uploads (mounted as volumes)
+reports/*
+uploads/*
+cache/*
+instance/*.db
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Development files
+.devin/
+.agents/
+
+# Backup files
+*.bak
+*.backup
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Docker files (not needed in image)
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile.dev

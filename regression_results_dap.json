@@ -1,0 +1,32 @@
+{
+  "generated_at": 1781722455,
+  "results": [
+    {
+      "repo": "dap-catalog-workflows",
+      "success": true,
+      "total_components": 12,
+      "compliant_components": 12,
+      "unconfirmed_components": 0,
+      "non_compliant_components": 0,
+      "compliance_pct": 100.0,
+      "findings_total": 16,
+      "findings_runtime_compliant": 15,
+      "endpoint_by_type": {
+        "direct_public": 0,
+        "translated": 12
+      },
+      "endpoint_total_configurations": 0,
+      "runtime_counts": {
+        "docker": 0,
+        "go": 0,
+        "maven": 0,
+        "npm": 0,
+        "pip": 105
+      },
+      "checks_passed": false,
+      "check_failures": [
+        "Endpoint mismatch: by_type has 12 entries but total_configurations is 0"
+      ]
+    }
+  ]
+}

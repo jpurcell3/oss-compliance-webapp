@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>OSS Compliance Verification</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline/index.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">OSS Compliance Verification</h1>
+                    <span class="ml-4 text-sm text-gray-500">v{{ version }}</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="{{ url_for('list_reports') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Reports</a>
+                    <a href="{{ url_for('config') }}" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Configuration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mb-6">
+                        {% for category, message in messages %}
+                            <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800{% else %}bg-green-50 text-green-800{% endif %}">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        {% if category == 'error' %}
+                                            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                            </svg>
+                                        {% else %}
+                                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            </svg>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium">{{ message }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Main Content -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Scan Form -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Scan Repository</h3>
+
+                            <!-- Scan Status Indicator -->
+                            <div id="scan-status" class="hidden mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                                <div class="flex items-center">
+                                    <svg class="animate-spin h-5 w-5 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="text-blue-800 font-medium">Scan in progress...</span>
+                                </div>
+                                <p class="text-blue-600 text-sm mt-1">Please wait while the repository is being scanned for compliance.</p>
+                            </div>
+
+                            <form action="{{ url_for('scan_repository') }}" method="POST" class="space-y-6" id="scan-form">
+                                <!-- Scan Type Selection -->
+                                <div class="mb-6">
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="scan_type" value="local" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                            <span class="ml-2 text-sm text-gray-700">Local Repository</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="scan_type" value="remote" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                            <span class="ml-2 text-sm text-gray-700">Remote Repository</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Enhanced scan always enabled for remote repositories -->
+                                <input type="hidden" name="use_enhanced" value="true">
+
+                                <!-- GitHub Instance Selection -->
+                                <div id="github-instance-selection" class="mb-6 hidden">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">GitHub Instance</label>
+                                    <div class="space-y-2">
+                                        {% if github_instances %}
+                                            {% for instance_id, instance_config in github_instances.items() %}
+                                                <label class="flex items-center">
+                                                    <input type="radio" name="github_instance" value="{{ instance_id }}" 
+                                                           {% if loop.first %}checked{% endif %}
+                                                           class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                                    <span class="ml-2 text-sm text-gray-700">{{ instance_config.name }}</span>
+                                                    <span class="ml-2 text-xs text-gray-500">({{ instance_config.org }})</span>
+                                                </label>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="text-sm text-gray-500">No GitHub instances configured. Please configure them in the .env file.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <!-- Local Repository Input -->
+                                <div id="local-input">
+                                    <label for="repo_path" class="block text-sm font-medium text-gray-700">Repository Path</label>
+                                    <div class="mt-1">
+                                        <input type="text" name="repo_input" id="repo_path" 
+                                               class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                               placeholder="e.g., /path/to/your/repository">
+                                    </div>
+                                    <p class="mt-2 text-sm text-gray-500">Enter the absolute path to the repository you want to scan for OSS compliance.</p>
+                                    
+                                    <!-- Enhanced Analysis always enabled for local scans -->
+                                    <div class="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-md">
+                                        <div class="flex">
+                                            <svg class="h-5 w-5 text-purple-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M13 7H7v6h6V7z"/>
+                                                <path fill-rule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 010-2h1V5a2 2 0 012-2h2V2zM5 5h10v10H5V5z" clip-rule="evenodd"/>
+                                            </svg>
+                                            <div class="text-sm text-purple-900">
+                                                <p class="font-medium">Enhanced Endpoint Analysis</p>
+                                                <p class="mt-1">Performs deep component-level analysis: enumerates all OSS components, maps to endpoint configurations, detects GOPRIVATE misconfiguration and proxy issues.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="use_enhanced" value="true">
+                                </div>
+
+                                <!-- Remote Repository Input -->
+                                <div id="remote-input" class="hidden">
+                                    <!-- Hidden input to store selected repository name -->
+                                    <input type="hidden" name="repo_input" id="repo_names">
+                                    
+                                    <!-- Team Filter (Optional) -->
+                                    <div class="mb-4">
+                                        <label for="team_filter" class="block text-sm font-medium text-gray-700 mb-2">Filter by Team (Optional)</label>
+                                        <select id="team_filter" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                            <option value="">All Repositories</option>
+                                        </select>
+                                        <p class="mt-1 text-xs text-gray-500">Select a team to filter repositories, or leave as "All Repositories"</p>
+                                    </div>
+                                    
+                                    <!-- Repository Selection -->
+                                    <div class="mt-4">
+                                        <div class="flex space-x-2 mb-3">
+                                            <div class="flex-1">
+                                                <input type="text" id="repo-search" placeholder="Search repositories..." 
+                                                       class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-2 border-gray-400 rounded-md p-2 bg-white">
+                                            </div>
+                                            <button type="button" id="refresh-repos" class="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                                </svg>
+                                                Refresh
+                                            </button>
+                                        </div>
+                                        
+                                        <div id="repo-selection">
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Repository (one only):</label>
+                                            <div id="repo-checkboxes" class="space-y-2 max-h-40 overflow-y-auto border-2 border-gray-400 rounded-md p-3">
+                                                <p class="text-sm text-gray-500 text-center py-4">Loading repositories...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end">
+                                    <button type="submit" id="scan-button" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                        </svg>
+                                        Start Scan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Summary -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Current Configuration</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700">Artifactory Base</h4>
+                                    <p class="text-sm text-gray-500">{{ artifactory_base }}</p>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">Virtual Repositories</h4>
+                                    <div class="space-y-1">
+                                        {% for repo_type, repo_name in virtual_repos.items() %}
+                                            <div class="flex justify-between text-sm">
+                                                <span class="text-gray-600 capitalize">{{ repo_type }}:</span>
+                                                <span class="text-gray-500">{{ repo_name }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <div class="pt-4">
+                                    <a href="{{ url_for('config') }}" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        </svg>
+                                        Edit Configuration
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="mt-8">
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Features</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <div class="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="mt-2 text-sm font-medium text-gray-900">Multi-Language Support</h4>
+                                <p class="mt-1 text-xs text-gray-500">Go, Python, Node.js, Java, Maven</p>
+                            </div>
+                            
+                            <div class="text-center">
+                                <div class="flex items-center justify-center h-12 w-12 rounded-md bg-green-500 text-white mx-auto">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="mt-2 text-sm font-medium text-gray-900">Detailed Reports</h4>
+                                <p class="mt-1 text-xs text-gray-500">JSON, Markdown, and YAML exports</p>
+                            </div>
+                            
+                            <div class="text-center">
+                                <div class="flex items-center justify-center h-12 w-12 rounded-md bg-yellow-500 text-white mx-auto">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="mt-2 text-sm font-medium text-gray-900">Configurable</h4>
+                                <p class="mt-1 text-xs text-gray-500">Custom virtual repositories</p>
+                            </div>
+                            
+                            <div class="text-center">
+                                <div class="flex items-center justify-center h-12 w-12 rounded-md bg-purple-500 text-white mx-auto">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="mt-2 text-sm font-medium text-gray-900">Automation Specs</h4>
+                                <p class="mt-1 text-xs text-gray-500">WindSurf automation files</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global cache for repositories
+        let cachedRepositories = [];
+        let currentGithubInstance = '';
+        let repoNamesInput; // Global reference to repo names input
+
+        // Handle scan form submission to show progress
+        document.getElementById('scan-form').addEventListener('submit', function(e) {
+            const scanButton = document.getElementById('scan-button');
+            const scanStatus = document.getElementById('scan-status');
+            
+            // Show scan status
+            scanStatus.classList.remove('hidden');
+            
+            // Disable scan button and change text
+            scanButton.disabled = true;
+            scanButton.innerHTML = `
+                <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Scanning...
+            `;
+            scanButton.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            // Note: The form will submit normally, and the page will redirect to results
+            // This is just to provide visual feedback before the redirect happens
+        });
+
+        // Function to load repositories
+        async function loadRepositories(force = false) {
+            const repoCheckboxes = document.getElementById('repo-checkboxes');
+            
+            try {
+                // Get selected GitHub instance
+                const githubInstance = document.querySelector('input[name="github_instance"]:checked')?.value || '';
+                currentGithubInstance = githubInstance;
+                
+                // Check if we have cached data for this instance (unless force refresh)
+                if (!force && cachedRepositories.length > 0) {
+                    displayRepositories(cachedRepositories);
+                    return;
+                }
+
+                // Show loading state
+                repoCheckboxes.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Loading repositories...</p>';
+
+                let apiUrl = '/api/repositories';
+                if (githubInstance) {
+                    apiUrl += `?github_instance=${encodeURIComponent(githubInstance)}`;
+                }
+
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Cache the repositories
+                cachedRepositories = data.repositories;
+                displayRepositories(cachedRepositories);
+                
+            } catch (error) {
+                repoCheckboxes.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Function to reset scan state
+        function resetScanState() {
+            const scanStatus = document.getElementById('scan-status');
+            const scanButton = document.getElementById('scan-button');
+            
+            // Hide scan status indicator
+            if (scanStatus) {
+                scanStatus.classList.add('hidden');
+            }
+            
+            // Reset scan button
+            if (scanButton) {
+                scanButton.disabled = false;
+                scanButton.innerHTML = `
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                    Start Scan
+                `;
+                scanButton.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        // Wait for DOM to be ready before setting up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Reset scan state on page load (prevents issues with back button)
+            resetScanState();
+            
+            // Handle scan type switching
+            const scanTypeRadios = document.querySelectorAll('input[name="scan_type"]');
+            const localInput = document.getElementById('local-input');
+            const remoteInput = document.getElementById('remote-input');
+            const githubInstanceSelection = document.getElementById('github-instance-selection');
+            const repoPathInput = document.getElementById('repo_path');
+            repoNamesInput = document.getElementById('repo_names'); // Assign to global variable
+
+            // Initialize based on default selection (remote)
+            const defaultScanType = document.querySelector('input[name="scan_type"]:checked')?.value || 'remote';
+            
+            // Hide all inputs initially
+            localInput.classList.add('hidden');
+            remoteInput.classList.add('hidden');
+            githubInstanceSelection.classList.add('hidden');
+            
+            // Reset required attributes
+            repoPathInput.required = false;
+            repoNamesInput.required = false;
+            
+            // Show default input and set required
+            if (defaultScanType === 'local') {
+                localInput.classList.remove('hidden');
+                repoPathInput.required = true;
+            } else if (defaultScanType === 'remote') {
+                remoteInput.classList.remove('hidden');
+                githubInstanceSelection.classList.remove('hidden');
+                repoNamesInput.required = true;
+                // Auto-load repositories and teams on page load for remote default
+                loadRepositories();
+                loadTeamsForFilter();
+            }
+
+            scanTypeRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    // Hide all inputs
+                    localInput.classList.add('hidden');
+                    remoteInput.classList.add('hidden');
+                    githubInstanceSelection.classList.add('hidden');
+                    
+                    // Reset required attributes
+                    repoPathInput.required = false;
+                    repoNamesInput.required = false;
+                    
+                    // Show relevant input and set required
+                    if (this.value === 'local') {
+                        localInput.classList.remove('hidden');
+                        repoPathInput.required = true;
+                    } else if (this.value === 'remote') {
+                        remoteInput.classList.remove('hidden');
+                        githubInstanceSelection.classList.remove('hidden');
+                        repoNamesInput.required = true;
+                        // Auto-load repositories and teams when switching to remote
+                        loadRepositories();
+                        loadTeamsForFilter();
+                    }
+                });
+            });
+        });
+
+        // Also reset on pageshow (handles browser back button / bfcache)
+        window.addEventListener('pageshow', function(event) {
+            // If the page is being shown from cache (bfcache)
+            if (event.persisted) {
+                resetScanState();
+            } else {
+                // Always reset on pageshow to be safe
+                resetScanState();
+            }
+        });
+
+        // Handle GitHub instance changes - reload repositories when instance changes
+        const githubInstanceRadios = document.querySelectorAll('input[name="github_instance"]');
+        githubInstanceRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const newInstance = this.value;
+                if (newInstance !== currentGithubInstance) {
+                    currentGithubInstance = newInstance;
+                    cachedRepositories = []; // Clear cache when instance changes
+                    document.getElementById('repo-search').value = '';
+                    // Auto-reload repositories for new instance
+                    loadRepositories();
+                }
+            });
+        });
+
+        // Refresh cache button
+        document.getElementById('refresh-repos').addEventListener('click', async function(e) {
+            e.preventDefault(); // Prevent form submission
+            e.stopPropagation(); // Stop event from bubbling up
+            
+            const button = this;
+            const originalText = button.innerHTML;
+            
+            try {
+                button.innerHTML = '<svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Refreshing...';
+                button.disabled = true;
+
+                // Get selected GitHub instance
+                const githubInstance = document.querySelector('input[name="github_instance"]:checked')?.value || '';
+
+                let apiUrl = '/api/repositories/refresh';
+                if (githubInstance) {
+                    apiUrl += `?github_instance=${encodeURIComponent(githubInstance)}`;
+                }
+
+                const response = await fetch(apiUrl, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Update cache
+                cachedRepositories = data.repositories;
+                displayRepositories(cachedRepositories);
+                
+            } catch (error) {
+                const repoCheckboxes = document.getElementById('repo-checkboxes');
+                repoCheckboxes.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Error: ${error.message}</p>`;
+            } finally {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        });
+
+        // Function to display repositories
+        function displayRepositories(repositories) {
+            const repoCheckboxes = document.getElementById('repo-checkboxes');
+            const repoSelection = document.getElementById('repo-selection');
+            
+            repoCheckboxes.innerHTML = '';
+            
+            if (repositories.length === 0) {
+                repoCheckboxes.innerHTML = '<p class="text-sm text-gray-500">No repositories found.</p>';
+                repoSelection.classList.remove('hidden');
+                return;
+            }
+            
+            // Add individual repository radio buttons (single select only)
+            repositories.forEach((repo, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center p-2 hover:bg-gray-50 cursor-pointer rounded transition-colors';
+                // Use index for ID to avoid issues with special characters in repo names
+                const safeId = `repo_radio_${index}`;
+                div.innerHTML = `
+                    <input type="radio" id="${safeId}" name="selected_repository" value="${repo}" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 repo-radio cursor-pointer">
+                    <label for="${safeId}" class="ml-3 flex-1 text-sm text-gray-700 cursor-pointer">${repo}</label>
+                `;
+                div.addEventListener('click', function(e) {
+                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+                        const radio = this.querySelector('input[type="radio"]');
+                        radio.checked = true;
+                        radio.dispatchEvent(new Event('change'));
+                    }
+                });
+                repoCheckboxes.appendChild(div);
+            });
+
+            repoSelection.classList.remove('hidden');
+            
+            // Handle radio button interactions (single select)
+            const repoRadiosList = document.querySelectorAll('.repo-radio');
+            
+            console.log('DEBUG: Setting up radio listeners, repoNamesInput:', repoNamesInput);
+            console.log('DEBUG: Found radio buttons:', repoRadiosList.length);
+            
+            repoRadiosList.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    console.log('DEBUG: Radio changed, value:', this.value);
+                    console.log('DEBUG: repoNamesInput element:', repoNamesInput);
+                    if (this.checked) {
+                        repoNamesInput.value = this.value;
+                        console.log('DEBUG: Set repoNamesInput.value to:', this.value);
+                    }
+                });
+            });
+        }
+
+        // Search functionality - now filters locally
+        document.getElementById('repo-search').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            
+            // If no repositories loaded, don't do anything
+            if (cachedRepositories.length === 0) {
+                return;
+            }
+            
+            // Filter repositories locally
+            const filteredRepos = cachedRepositories.filter(repo => {
+                const repoLower = repo.toLowerCase();
+                // Exact match or contains match
+                return repoLower.includes(searchTerm) || searchTerm === '' || searchTerm.length < 2;
+            });
+            
+            displayRepositories(filteredRepos);
+        });
+
+        // Load teams for filter dropdown
+        let allTeamsData = {};
+        async function loadTeamsForFilter() {
+            try {
+                const response = await fetch('/api/teams');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Store teams data globally
+                allTeamsData = data.teams;
+                
+                const teamFilter = document.getElementById('team_filter');
+                teamFilter.innerHTML = '<option value="">All Repositories</option>';
+                
+                Object.keys(data.teams).forEach(teamName => {
+                    const option = document.createElement('option');
+                    option.value = teamName;
+                    option.textContent = `${teamName} (${data.teams[teamName].length} repos)`;
+                    teamFilter.appendChild(option);
+                });
+                
+                // Handle team filter change
+                teamFilter.addEventListener('change', function() {
+                    const selectedTeam = this.value;
+                    if (selectedTeam && allTeamsData[selectedTeam]) {
+                        // Filter repositories to only show team repos
+                        const teamRepos = allTeamsData[selectedTeam];
+                        displayRepositories(teamRepos);
+                    } else {
+                        // Show all repositories
+                        displayRepositories(cachedRepositories);
+                    }
+                    // Clear search when team filter changes
+                    document.getElementById('repo-search').value = '';
+                });
+                
+            } catch (error) {
+                console.error('Error loading teams:', error);
+            }
+        }
+
+        // Reset scan state on page load (moved into main DOMContentLoaded handler above)
+        // This ensures the page loads in a clean state when using back button
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+# OSS Compliance Web Application Configuration Example
+# Copy this file to app_config.yaml and customize for your environment
+
+version: "1.0"
+
+artifactory:
+  base_url: "your-artifactory.example.com"
+  virtual_repos:
+    docker: "your-docker-virtual"
+    go: "your-go-virtual"
+    helm: "your-helm-virtual"
+    maven: "your-maven-virtual"
+    npm: "your-npm-virtual"
+    pypi: "your-pypi-virtual"
+    rpm: "your-rpm-virtual"
+
+github_instances:
+  # Example GitHub Enterprise instance
+  eos2git:
+    name: "GitHub Enterprise"
+    api_url: "https://github.enterprise.com/api/v3"
+    org: "your-organization"
+    users:
+      - username: "default_user"
+        token_env: "GITHUB_ENTERPRISE_TOKEN"
+        email: "user@example.com"
+  
+  # Example GitHub.com instance
+  github:
+    name: "GitHub.com"
+    api_url: "https://api.github.com"
+    org: "your-github-org"
+    users:
+      - username: "default_user"
+        token_env: "GITHUB_COM_TOKEN"
+        email: "user@example.com"
+
+jenkins:
+  user: "jenkins-service-account"
+  token_env: "JENKINS_API_TOKEN"
+  urls:
+    - "https://jenkins.example.com"
+  pr_validation_job: "oss-compliance-validation"
+
+whitelist_urls:
+  - "https://github.com"
+  - "https://gitlab.com"
+
+app_settings:
+  max_scan_threads: 4
+  cache_ttl_hours: 1
+  report_retention_days: 90

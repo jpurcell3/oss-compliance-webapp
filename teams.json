@@ -1,0 +1,92 @@
+{
+  "Blueprint-Assist": [
+   	"blueprint-assist-build",
+	"nativeedge-authorizer",
+	"nativeedge-genai",
+	"nativeedge-huggingface-agent",
+	"nativeedge-kubernetes-plugin",
+	"nativeedge-lint",
+	"nativeedge-plugins-agent",
+	"nativeedge-plugins-sdk",
+	"nativeedge-terragrunt-plugin"
+	],
+  
+  "Enablement": [
+    "hzp-flag-manager-svc",
+	"hzp-ingress-authz-svc",
+    "hzp-vault-bootstrap"
+    ],
+  
+  "InfraFleet": [
+  	"hzp-api-gateway-svc",
+	"hzp-datacollection-svc",
+	"hzp-eo-initialization-svc",
+	"hzp-fido-onboarding-svc",
+	"hzp-fido-owner-reseller",
+	"hzp-fido-rv",
+	"dap-go-commons",
+	"hzp-health-check-svc",
+	"hzp-inventory",
+	"hzp-job-svc",
+	"hzp-metrics-svc",
+	"hzp-multi-cloud-lib",
+	"hzp-oxy-certificate-svc",
+	"hzp-oxy-initialization-svc",
+	"hzp-oxy-logs-svc",
+	"hzp-oxy-proxy-svc",
+	"hzp-product-svc",
+	"hzp-rules-svc",
+	"hzp-scheduler-svc",
+	"hzp-time-svc",
+	"hzp-upgrade-svc"
+   ],
+   
+  "Security": [
+	"hzp-attestation-svc",
+	"hzp-iam-policy-svc",
+	"hzp-iam-session-svc",
+	"hzp-iam-webhook-svc",
+	"hzp-keycloak-login"
+	],
+
+  "Orchestration": [
+	"fusion-agent",
+	"fusion-agent-service",
+	"fusion-apiservice",
+	"fusion-blueprint-service",
+	"fusion-common",
+	"fusion-deployments-service",
+	"fusion-execution-scheduler",
+	"fusion-manager",
+	"fusion-mgmtworker",
+	"fusion-plugins-service",
+	"fusion-secrets-service",
+	"fusion-services-common",
+	"fusion-stage",
+	"fusion-stage-backend",
+	"hzp-drift-svc"
+	],
+	
+	"Portal": [
+    "dsp-iam-gui",
+    "dsp-security-gui",
+    "dap-tag-ui-lib",
+    "dap-common-ui-lib",
+    "dsp-event-svc",
+    "dsp-iam-org-svc",
+    "dsp-tags-svc",
+    "hzp-tags-svc",
+    "hzp-event-svc",
+    "dsp-agreement-svc",
+    "dsp-portal-gui",
+    "dsp-services-gui",
+    "dsp-inventory-gui",
+    "dsp-portal-gui",
+    "dsp-catalog-svc",
+    "dsp-catalog-gui",
+    "hzp-catalog-svc",
+    "dsp-portal-infra-svc",
+	"dsp-notification-service",
+    "hzp-notification-svc"
+  ]
+}

@@ -1,0 +1,48 @@
+version: '1.0'
+artifactory:
+  base_url: isgedge.artifactory.cec.lab.emc.com
+  virtual_repos:
+    docker: isgedge-docker-virtual
+    go: isgedge-go-virtual
+    helm: isgedge-helm-virtual
+    maven: isgedge-maven-virtual
+    npm: isgedge-npm-virtual
+    pypi: isgedge-pypi-virtual
+    rpm: isgedge-rpm-virtual
+    factoryos: isgedge-factoryos-virtual
+    debian: isgedge-manufacturing-debian-virtual
+  token_encrypted: gAAAAABqM_kYHRDUuzRsVHBfda8gx3Ei19ZEOgO6cBgvbOHazj46UQM8KjWyU9vAE5voSkHKMFeB9DbLC4x-Ru76xWC_RTaBay0n4y8DLr8bYPZ53kkka6zr54UY1Na6tht11tv95co23H0oFGpUAZv5N2ohA36MUBzaBysyAeuy1ND-ayhjJhs=
+  user: jpurcell
+github_instances:
+  eos2git:
+    name: ISG-Edge
+    api_url: https://eos2git.cec.lab.emc.com/api/v3
+    org: ISG-Edge
+    users:
+    - username: jpurcell
+      email: ''
+      token_encrypted: gAAAAABqM_b83GZxBWS9z7vh3S7wZK28KWKtKykkwPVbymt3pY70pI9my7bSR6Qw4DHjEnHbvxMt1QWWzoi7CbE-9EmYaXxBHebBvs0FO_HHVJW9VR2Ugp3chHIx6WJbt9URSBVFfHdZ
+  github:
+    name: fusion-e
+    api_url: https://api.github.com
+    org: Fusion-e
+    users:
+    - username: jpurcell
+      email: ''
+      token_encrypted: gAAAAABqM_eOhB0IEiHyTCtnH3yWSTRvzFOdQw6hvByM2vEg7kphjpdyh24CDwgdM86l0jFOW5QwvHXx7zf1H8wo6OJdKiDP8Rrvxp4TMqkMr-V25HQGS2goUMNCyD_rChSXMihYtpG1
+jenkins:
+  user: jpurcell
+  urls:
+  - https://osj-isg-03-prd.cec.delllabs.net
+  pr_validation_job: oss-compliance-validation
+  token_encrypted: gAAAAABqM_gmCDcxdEH2myuF61keyt1oN27DtfsMM7bAuPxnG5tkq5IgfLWXO2p3zKSHWGq1id1wwaJYFGAygZN2fqAKYbi_MRobPAs_IjeDWAsytX87Ioo6QMn2WeJ5dbkKp3wzSqFh
+whitelist_urls:
+- github.com/fusion-e
+- eos2git.cec.lab.emc.com/ISG-Edge
+- eos2git.cec.lab.emc.com
+- github.com/cloudify-cosmo
+app_settings:
+  max_scan_threads: 4
+  cache_ttl_hours: 1
+  report_retention_days: 90
+  debug_logging: true
