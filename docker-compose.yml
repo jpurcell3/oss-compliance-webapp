@@ -2,11 +2,8 @@ version: '3.8'
 
 services:
   oss-compliance-webapp:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/jpurcell3/oss-compliance-webapp:latest
     container_name: oss-compliance-webapp
-    image: oss-compliance-webapp:1.0
     ports:
       - "5001:5001"
     environment:
