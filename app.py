@@ -512,32 +512,9 @@ def get_repositories():
     github_instance_id = request.args.get('github_instance', None)
     force_refresh = request.args.get('refresh', 'false').lower() == 'true'
     
-    # Generate session cache key
-    session_cache_key = f'repo_cache_{github_instance_id}' if github_instance_id else 'repo_cache_default'
-    
     try:
-        # Check session cache first (unless force refresh)
-        if not force_refresh and session_cache_key in session:
-            session_cache_data = session[session_cache_key]
-            cache_time = datetime.fromisoformat(session_cache_data.get('timestamp', ''))
-            # Use same TTL as file cache (24 hours)
-            if datetime.now() - cache_time < timedelta(hours=24):
-                cached_repos = session_cache_data.get('repositories', [])
-                print(f"Using session cache for repositories ({len(cached_repos)} repos)")
-                search_term = request.args.get('search', '')
-                if search_term:
-                    cached_repos = scanner.filter_repositories(cached_repos, search_term)
-                return jsonify({'repositories': cached_repos, 'cached': True})
-        
         # Fall back to scanner (which checks file cache)
         repositories = scanner.get_available_repositories(github_instance_id, force_refresh=force_refresh)
-        
-        # Store in session cache for future requests
-        session[session_cache_key] = {
-            'timestamp': datetime.now().isoformat(),
-            'repositories': repositories
-        }
-        print(f"Cached repositories in session ({len(repositories)} repos)")
         
         search_term = request.args.get('search', '')
         if search_term:
@@ -552,12 +529,6 @@ def refresh_repositories():
     """Force refresh the repository cache"""
     scanner = WebComplianceScanner()
     github_instance_id = request.args.get('github_instance', None)
-    
-    # Clear session cache
-    session_cache_key = f'repo_cache_{github_instance_id}' if github_instance_id else 'repo_cache_default'
-    if session_cache_key in session:
-        del session[session_cache_key]
-        print(f"Cleared session cache for {session_cache_key}")
     
     try:
         repositories = scanner.get_available_repositories(github_instance_id, force_refresh=True)
