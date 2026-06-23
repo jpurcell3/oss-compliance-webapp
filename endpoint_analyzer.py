@@ -891,7 +891,7 @@ class EndpointAnalyzer:
                 'compliant_components': compliant_components,
                 'non_compliant_components': non_compliant_components,
                 'warning_components': warning_components,
-                'compliance_percentage': round((compliant_components / total_components * 100) if total_components > 0 else 0, 2),
+                'compliance_percentage': round((compliant_components / total_components * 100) if total_components > 0 else 100, 2),
                 'total_endpoint_configs': len(self.endpoint_configs)
             },
             'by_ecosystem': by_ecosystem,

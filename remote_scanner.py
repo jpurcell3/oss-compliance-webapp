@@ -795,7 +795,7 @@ class RemoteRepositoryScanner:
                 'compliant_checks': total_compliant,  # Keep for backward compatibility
                 'non_compliant_items': total_non_compliant,  # UI expects non_compliant_items
                 'non_compliant_checks': total_non_compliant,  # Keep for backward compatibility
-                'compliance_percentage': round((total_compliant / total_checks) * 100, 2) if total_checks > 0 else 0,
+                'compliance_percentage': round((total_compliant / total_checks) * 100, 2) if total_checks > 0 else 100,
                 'repositories_scanned': len(repo_names),
                 'repository_name': f"Multi-repo scan ({len(repo_names)} repositories)"
             },
@@ -860,7 +860,7 @@ class RemoteRepositoryScanner:
                 all_reports[repo_name] = {'error': str(e)}
         
         # Create combined report
-        compliance_percentage = round((total_compliant / total_components * 100) if total_components > 0 else 0, 2)
+        compliance_percentage = round((total_compliant / total_components * 100) if total_components > 0 else 100, 2)
         
         combined_report = {
             'summary': {
@@ -1629,9 +1629,7 @@ class RemoteComplianceScanner:
     
     def generate_report(self) -> Dict:
         """Generate compliance report with per-dependency compliance calculation"""
-        compliance_percentage = 0
-        if self.total_items > 0:
-            compliance_percentage = round((self.compliant_items / self.total_items) * 100, 2)
+        compliance_percentage = 100 if self.total_items == 0 else round((self.compliant_items / self.total_items) * 100, 2)
         
         return {
             'scan_summary': {

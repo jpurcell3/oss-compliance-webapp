@@ -411,9 +411,7 @@ class ComplianceScanner:
     
     def generate_report(self) -> Dict:
         """Generate compliance report with per-dependency compliance calculation"""
-        compliance_percentage = 0
-        if self.total_items > 0:
-            compliance_percentage = round((self.compliant_items / self.total_items) * 100, 2)
+        compliance_percentage = 100 if self.total_items == 0 else round((self.compliant_items / self.total_items) * 100, 2)
         
         return {
             'scan_summary': {
