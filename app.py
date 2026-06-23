@@ -58,7 +58,7 @@ def decrypt_token(encrypted_token: str) -> str:
         return encrypted_token  # Fallback to plain text if decryption fails
 
 # Version information
-__version__ = '0.4.0'
+__version__ = '0.5.0'
 
 # Import the compliance scanners
 import sys
