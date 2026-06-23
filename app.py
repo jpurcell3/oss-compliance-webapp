@@ -7,9 +7,9 @@ A Flask-based web application for scanning repositories and generating complianc
 import os
 import json
 import yaml
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
 from werkzeug.utils import secure_filename
 import zipfile
 import tempfile
@@ -511,14 +511,39 @@ def get_repositories():
     scanner = WebComplianceScanner()
     github_instance_id = request.args.get('github_instance', None)
     force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+    
+    # Generate session cache key
+    session_cache_key = f'repo_cache_{github_instance_id}' if github_instance_id else 'repo_cache_default'
+    
     try:
-        repositories = scanner.get_available_repositories(github_instance_id, force_refresh=force_refresh)
-        search_term = request.args.get('search', '')
+        # Check session cache first (unless force refresh)
+        if not force_refresh and session_cache_key in session:
+            session_cache_data = session[session_cache_key]
+            cache_time = datetime.fromisoformat(session_cache_data.get('timestamp', ''))
+            # Use same TTL as file cache (24 hours)
+            if datetime.now() - cache_time < timedelta(hours=24):
+                cached_repos = session_cache_data.get('repositories', [])
+                print(f"Using session cache for repositories ({len(cached_repos)} repos)")
+                search_term = request.args.get('search', '')
+                if search_term:
+                    cached_repos = scanner.filter_repositories(cached_repos, search_term)
+                return jsonify({'repositories': cached_repos, 'cached': True})
         
+        # Fall back to scanner (which checks file cache)
+        repositories = scanner.get_available_repositories(github_instance_id, force_refresh=force_refresh)
+        
+        # Store in session cache for future requests
+        session[session_cache_key] = {
+            'timestamp': datetime.now().isoformat(),
+            'repositories': repositories
+        }
+        print(f"Cached repositories in session ({len(repositories)} repos)")
+        
+        search_term = request.args.get('search', '')
         if search_term:
             repositories = scanner.filter_repositories(repositories, search_term)
         
-        return jsonify({'repositories': repositories})
+        return jsonify({'repositories': repositories, 'cached': False})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -527,6 +552,13 @@ def refresh_repositories():
     """Force refresh the repository cache"""
     scanner = WebComplianceScanner()
     github_instance_id = request.args.get('github_instance', None)
+    
+    # Clear session cache
+    session_cache_key = f'repo_cache_{github_instance_id}' if github_instance_id else 'repo_cache_default'
+    if session_cache_key in session:
+        del session[session_cache_key]
+        print(f"Cleared session cache for {session_cache_key}")
+    
     try:
         repositories = scanner.get_available_repositories(github_instance_id, force_refresh=True)
         return jsonify({'repositories': repositories, 'message': 'Repository cache refreshed successfully'})

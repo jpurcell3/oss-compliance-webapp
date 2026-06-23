@@ -287,6 +287,19 @@
         let cachedRepositories = [];
         let currentGithubInstance = '';
         let repoNamesInput; // Global reference to repo names input
+        
+        // Try to restore cache from sessionStorage on page load
+        try {
+            const savedCache = sessionStorage.getItem('cachedRepositories');
+            const savedInstance = sessionStorage.getItem('currentGithubInstance');
+            if (savedCache && savedInstance) {
+                cachedRepositories = JSON.parse(savedCache);
+                currentGithubInstance = savedInstance;
+                console.log('Restored repository cache from sessionStorage');
+            }
+        } catch (e) {
+            console.log('Could not restore cache from sessionStorage:', e);
+        }
 
         // Handle scan form submission to show progress
         document.getElementById('scan-form').addEventListener('submit', function(e) {
@@ -326,12 +339,17 @@
                     return;
                 }
 
-                // Show loading state
-                repoCheckboxes.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Loading repositories...</p>';
+                // Show loading state only when not forcing refresh
+                if (!force) {
+                    repoCheckboxes.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Loading repositories...</p>';
+                }
 
                 let apiUrl = '/api/repositories';
                 if (githubInstance) {
                     apiUrl += `?github_instance=${encodeURIComponent(githubInstance)}`;
+                }
+                if (force) {
+                    apiUrl += '&refresh=true';
                 }
 
                 const response = await fetch(apiUrl);
@@ -343,7 +361,21 @@
 
                 // Cache the repositories
                 cachedRepositories = data.repositories;
+                
+                // Save to sessionStorage for persistence across page reloads
+                try {
+                    sessionStorage.setItem('cachedRepositories', JSON.stringify(cachedRepositories));
+                    sessionStorage.setItem('currentGithubInstance', currentGithubInstance);
+                } catch (e) {
+                    console.log('Could not save cache to sessionStorage:', e);
+                }
+                
                 displayRepositories(cachedRepositories);
+                
+                // Log if data was served from cache
+                if (data.cached) {
+                    console.log('Repositories loaded from session cache');
+                }
                 
             } catch (error) {
                 repoCheckboxes.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Error: ${error.message}</p>`;
@@ -457,6 +489,15 @@
                 if (newInstance !== currentGithubInstance) {
                     currentGithubInstance = newInstance;
                     cachedRepositories = []; // Clear cache when instance changes
+                    
+                    // Clear sessionStorage cache
+                    try {
+                        sessionStorage.removeItem('cachedRepositories');
+                        sessionStorage.removeItem('currentGithubInstance');
+                    } catch (e) {
+                        console.log('Could not clear sessionStorage:', e);
+                    }
+                    
                     document.getElementById('repo-search').value = '';
                     // Auto-reload repositories for new instance
                     loadRepositories();
@@ -476,6 +517,17 @@
                 button.innerHTML = '<svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Refreshing...';
                 button.disabled = true;
 
+                // Clear frontend cache
+                cachedRepositories = [];
+                
+                // Clear sessionStorage cache
+                try {
+                    sessionStorage.removeItem('cachedRepositories');
+                    sessionStorage.removeItem('currentGithubInstance');
+                } catch (e) {
+                    console.log('Could not clear sessionStorage:', e);
+                }
+
                 // Get selected GitHub instance
                 const githubInstance = document.querySelector('input[name="github_instance"]:checked')?.value || '';
 
@@ -494,6 +546,7 @@
                 // Update cache
                 cachedRepositories = data.repositories;
                 displayRepositories(cachedRepositories);
+                console.log('Repository cache refreshed from API');
                 
             } catch (error) {
                 const repoCheckboxes = document.getElementById('repo-checkboxes');
