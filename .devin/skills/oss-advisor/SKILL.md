@@ -1,4 +1,4 @@
-# OSS Compliance Web Application - CLI Expert
+# OSS Compliance Web Application - OSS Advisor
 
 ## Description
 Expert skill for running OSS Compliance Web Application operations from the command line. Provides CLI-based alternatives to all UI operations, using the same underlying scanner classes and configuration as the web interface. This skill enables automated, scripted, and interactive command-line access to repository scanning, compliance analysis, PR creation, and configuration management.
@@ -63,32 +63,32 @@ Invoke this skill when:
 
 ### Basic Repository Scan
 ```
-"Invoke the oss-compliance-cli skill to scan the fusion-stage repository on eos2git GitHub server using basic scanning"
+"Invoke the oss-advisor skill to scan the fusion-stage repository on eos2git GitHub server using basic scanning"
 ```
 
 ### Enhanced Repository Scan
 ```
-"Invoke the oss-compliance-cli skill to perform an enhanced scan on the fusion-stage repository on eos2git with runtime endpoint analysis"
+"Invoke the oss-advisor skill to perform an enhanced scan on the fusion-stage repository on eos2git with runtime endpoint analysis"
 ```
 
 ### List Available Repositories
 ```
-"Invoke the oss-compliance-cli skill to list all available repositories on the eos2git GitHub server"
+"Invoke the oss-advisor skill to list all available repositories on the eos2git GitHub server"
 ```
 
 ### Test Configuration
 ```
-"Invoke the oss-compliance-cli skill to test the GitHub connectivity for the eos2git instance"
+"Invoke the oss-advisor skill to test the GitHub connectivity for the eos2git instance"
 ```
 
 ### View Scan Results
 ```
-"Invoke the oss-compliance-cli skill to show me the latest scan results for the fusion-stage repository"
+"Invoke the oss-advisor skill to show me the latest scan results for the fusion-stage repository"
 ```
 
 ### Create Pull Request
 ```
-"Invoke the oss-compliance-cli skill to create a pull request for the fusion-stage compliance fixes using the default user"
+"Invoke the oss-advisor skill to create a pull request for the fusion-stage compliance fixes using the default user"
 ```
 
 ## Implementation Approach
@@ -146,27 +146,27 @@ print(f"Compliance Score: {report['compliance_score']}%")
 
 ### Batch Repository Scanning
 ```
-"Invoke the oss-compliance-cli skill to scan all repositories starting with 'fusion-' on eos2git and generate a summary report"
+"Invoke the oss-advisor skill to scan all repositories starting with 'fusion-' on eos2git and generate a summary report"
 ```
 
 ### Multi-User PR Creation
 ```
-"Invoke the oss-compliance-cli skill to create a PR for fusion-stage using user 'jpurcell' from the eos2git instance"
+"Invoke the oss-advisor skill to create a PR for fusion-stage using user 'jpurcell' from the eos2git instance"
 ```
 
 ### Configuration Validation
 ```
-"Invoke the oss-compliance-cli skill to validate all GitHub instances in the configuration and report any connectivity issues"
+"Invoke the oss-advisor skill to validate all GitHub instances in the configuration and report any connectivity issues"
 ```
 
 ### Scan Result Analysis
 ```
-"Invoke the oss-compliance-cli skill to analyze the last 10 scans for fusion-stage and show compliance trends"
+"Invoke the oss-advisor skill to analyze the last 10 scans for fusion-stage and show compliance trends"
 ```
 
 ### Cache Management
 ```
-"Invoke the oss-compliance-cli skill to clear the repository cache for eos2git and refresh the repository list"
+"Invoke the oss-advisor skill to clear the repository cache for eos2git and refresh the repository list"
 ```
 
 ## Error Handling and Debugging
@@ -175,25 +175,25 @@ print(f"Compliance Score: {report['compliance_score']}%")
 
 **Issue**: GitHub API rate limiting
 ```
-"Invoke the oss-compliance-cli skill to debug the rate limiting issue when scanning fusion-stage"
+"Invoke the oss-advisor skill to debug the rate limiting issue when scanning fusion-stage"
 ```
 **Solution**: Check cache status, implement backoff, verify token permissions
 
 **Issue**: Token decryption failure
 ```
-"Invoke the oss-compliance-cli skill to troubleshoot token decryption for the eos2git instance"
+"Invoke the oss-advisor skill to troubleshoot token decryption for the eos2git instance"
 ```
 **Solution**: Verify ENCRYPTION_KEY, check token_encrypted format in YAML
 
 **Issue**: Repository not found
 ```
-"Invoke the oss-compliance-cli skill to verify that fusion-stage exists in the eos2git organization"
+"Invoke the oss-advisor skill to verify that fusion-stage exists in the eos2git organization"
 ```
 **Solution**: Check repository name spelling, verify organization name, test API access
 
 **Issue**: Enhanced scan timeout
 ```
-"Invoke the oss-compliance-cli skill to optimize the enhanced scan performance for fusion-stage"
+"Invoke the oss-advisor skill to optimize the enhanced scan performance for fusion-stage"
 ```
 **Solution**: Adjust timeout settings, analyze bottleneck components, implement caching
 
@@ -339,26 +339,26 @@ Before performing operations, the skill will:
 
 ### Workflow 1: First-Time Repository Scan
 ```
-1. "Invoke the oss-compliance-cli skill to test the eos2git GitHub configuration"
-2. "Invoke the oss-compliance-cli skill to list repositories on eos2git"
-3. "Invoke the oss-compliance-cli skill to scan fusion-stage on eos2git using enhanced scanning"
-4. "Invoke the oss-compliance-cli skill to show the scan results for fusion-stage"
+1. "Invoke the oss-advisor skill to test the eos2git GitHub configuration"
+2. "Invoke the oss-advisor skill to list repositories on eos2git"
+3. "Invoke the oss-advisor skill to scan fusion-stage on eos2git using enhanced scanning"
+4. "Invoke the oss-advisor skill to show the scan results for fusion-stage"
 ```
 
 ### Workflow 2: PR Creation for Compliance Fixes
 ```
-1. "Invoke the oss-compliance-cli skill to scan fusion-stage on eos2git"
-2. "Invoke the oss-compliance-cli skill to analyze the scan results for fusion-stage"
-3. "Invoke the oss-compliance-cli skill to create a PR for fusion-stage compliance fixes"
-4. "Invoke the oss-compliance-cli skill to track the PR status"
+1. "Invoke the oss-advisor skill to scan fusion-stage on eos2git"
+2. "Invoke the oss-advisor skill to analyze the scan results for fusion-stage"
+3. "Invoke the oss-advisor skill to create a PR for fusion-stage compliance fixes"
+4. "Invoke the oss-advisor skill to track the PR status"
 ```
 
 ### Workflow 3: Batch Repository Analysis
 ```
-1. "Invoke the oss-compliance-cli skill to list all repositories on eos2git"
-2. "Invoke the oss-compliance-cli skill to scan all fusion-* repositories on eos2git"
-3. "Invoke the oss-compliance-cli skill to generate a summary report for all fusion-* scans"
-4. "Invoke the oss-compliance-cli skill to identify repositories with compliance scores below 80%"
+1. "Invoke the oss-advisor skill to list all repositories on eos2git"
+2. "Invoke the oss-advisor skill to scan all fusion-* repositories on eos2git"
+3. "Invoke the oss-advisor skill to generate a summary report for all fusion-* scans"
+4. "Invoke the oss-advisor skill to identify repositories with compliance scores below 80%"
 ```
 
 ## Limitations and Constraints
@@ -382,7 +382,7 @@ Before performing operations, the skill will:
 ### Skill Invocation Issues
 **Problem**: Skill not found or not loading
 **Solution**: 
-- Verify skill file exists at `.devin/skills/oss-compliance-cli/SKILL.md`
+- Verify skill file exists at `.devin/skills/oss-advisor/SKILL.md`
 - Check file permissions
 - Ensure skill syntax is valid
 
