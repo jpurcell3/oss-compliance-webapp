@@ -647,6 +647,29 @@
                 return repoLower.includes(searchTerm) || searchTerm === '' || searchTerm.length < 2;
             });
             
+            // Check for exact match and auto-select if exactly one match
+            if (searchTerm.length >= 2) {
+                const exactMatches = cachedRepositories.filter(repo => 
+                    repo.toLowerCase() === searchTerm
+                );
+                
+                // Only auto-select if there's exactly one exact match
+                if (exactMatches.length === 1) {
+                    const exactMatch = exactMatches[0];
+                    console.log('Exact match found, auto-selecting:', exactMatch);
+                    
+                    // Find and select the radio button for the exact match
+                    const radioButtons = document.querySelectorAll('input[name="selected_repository"]');
+                    radioButtons.forEach(radio => {
+                        if (radio.value === exactMatch) {
+                            radio.checked = true;
+                            // Trigger change event to update the hidden input
+                            radio.dispatchEvent(new Event('change'));
+                        }
+                    });
+                }
+            }
+            
             displayRepositories(filteredRepos);
         });
 
