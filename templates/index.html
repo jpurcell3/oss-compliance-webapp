@@ -295,7 +295,9 @@
             if (savedCache && savedInstance) {
                 cachedRepositories = JSON.parse(savedCache);
                 currentGithubInstance = savedInstance;
-                console.log('Restored repository cache from sessionStorage');
+                console.log('Restored repository cache from sessionStorage:', cachedRepositories.length, 'repos for instance:', savedInstance);
+            } else {
+                console.log('No session cache found');
             }
         } catch (e) {
             console.log('Could not restore cache from sessionStorage:', e);
@@ -331,14 +333,20 @@
             try {
                 // Get selected GitHub instance
                 const githubInstance = document.querySelector('input[name="github_instance"]:checked')?.value || '';
+                console.log('loadRepositories called - force:', force, 'githubInstance:', githubInstance, 'currentGithubInstance:', currentGithubInstance);
+                
+                // Update current instance
                 currentGithubInstance = githubInstance;
                 
                 // Check if we have cached data for this instance (unless force refresh)
                 if (!force && cachedRepositories.length > 0) {
+                    console.log('Using cached repositories:', cachedRepositories.length, 'repos');
                     displayRepositories(cachedRepositories);
                     return;
                 }
 
+                console.log('No valid cache, fetching from API');
+                
                 // Show loading state only when not forcing refresh
                 if (!force) {
                     repoCheckboxes.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Loading repositories...</p>';
@@ -359,6 +367,8 @@
                     throw new Error(data.error);
                 }
 
+                console.log('API returned', data.repositories.length, 'repositories, cached:', data.cached);
+
                 // Cache the repositories
                 cachedRepositories = data.repositories;
                 
@@ -366,6 +376,7 @@
                 try {
                     sessionStorage.setItem('cachedRepositories', JSON.stringify(cachedRepositories));
                     sessionStorage.setItem('currentGithubInstance', currentGithubInstance);
+                    console.log('Saved to sessionStorage');
                 } catch (e) {
                     console.log('Could not save cache to sessionStorage:', e);
                 }
@@ -374,10 +385,11 @@
                 
                 // Log if data was served from cache
                 if (data.cached) {
-                    console.log('Repositories loaded from session cache');
+                    console.log('Repositories loaded from server session cache');
                 }
                 
             } catch (error) {
+                console.error('Error loading repositories:', error);
                 repoCheckboxes.innerHTML = `<p class="text-sm text-red-500 text-center py-4">Error: ${error.message}</p>`;
             }
         }
@@ -438,9 +450,18 @@
                 remoteInput.classList.remove('hidden');
                 githubInstanceSelection.classList.remove('hidden');
                 repoNamesInput.required = true;
-                // Auto-load repositories and teams on page load for remote default
-                loadRepositories();
-                loadTeamsForFilter();
+                
+                // Check if we have cached repositories before loading
+                if (cachedRepositories.length > 0) {
+                    console.log('Using cached repositories on page load:', cachedRepositories.length, 'repos');
+                    displayRepositories(cachedRepositories);
+                    loadTeamsForFilter();
+                } else {
+                    console.log('No cached repositories, loading from API');
+                    // Auto-load repositories and teams on page load for remote default
+                    loadRepositories();
+                    loadTeamsForFilter();
+                }
             }
 
             scanTypeRadios.forEach(radio => {
