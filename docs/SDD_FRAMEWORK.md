@@ -1,9 +1,9 @@
 # Software Design Document (SDD) Framework
 ## OSS Compliance Web Application
 
-**Document Version:** 1.1  
-**Application Version:** 0.5.0  
-**Last Updated:** 2026-06-05  
+**Document Version:** 1.2
+**Application Version:** 1.0
+**Last Updated:** 2026-06-23
 **Status:** Active
 
 ---
@@ -12,6 +12,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.2 | 2026-06-23 | System | Added multi-tier caching strategy (frontend sessionStorage + file-based cache), exact match auto-selection for repository search, improved cache hierarchy and invalidation |
 | 1.1 | 2026-06-05 | System | Added PR creation workflow, credential encryption, multi-user GitHub support, admin configuration UI |
 | 1.0 | 2026-05-29 | System | Initial SDD Framework |
 
@@ -484,7 +485,19 @@ Status Tracking → Database Update
 - Scan method selection (Basic/Enhanced)
 - GitHub instance selection
 - Repository selection (for remote scans)
+- Repository search with exact match auto-selection
 - Start scan button
+
+**Repository Search Features**:
+- **Real-time Filtering**: Local filtering of repository list as user types
+- **Exact Match Auto-Selection**: When search term exactly matches one repository name, that repository is automatically selected
+- **Partial Match Display**: Shows repositories containing the search term without auto-selection
+- **Case-Insensitive Matching**: Search works regardless of letter case
+- **Search Behavior**:
+  - Single exact match → Auto-selects repository radio button
+  - Multiple matches → Filters list but no auto-selection
+  - No matches → Shows empty list
+  - Partial matches → Filters list but no auto-selection
 
 #### 6.1.2 Results Interface
 **Purpose**: Display scan findings and recommendations
@@ -693,9 +706,18 @@ class CredentialManager:
 ### 8.2 Performance Optimization Strategies
 
 #### 8.2.1 Caching
-- **Repository Cache**: GitHub repository lists cached for 24 hours
+- **Repository Cache**: Multi-tier caching strategy for optimal performance
+  - **Frontend sessionStorage**: Browser-based caching for page reload persistence
+  - **File-based Cache**: Server-side cache with 24-hour TTL for repository lists
+  - **Cache Hierarchy**: Frontend cache checked first, falls back to file cache
 - **Scan Results**: Database storage for historical data
 - **Static Assets**: Browser caching for CSS/JS files
+
+**Cache Behavior**:
+- **Frontend sessionStorage**: Persists across page reloads within browser session
+- **File Cache**: Reduces GitHub API calls with 24-hour TTL
+- **Cache Invalidation**: Manual refresh clears all cache layers
+- **Cache Keys**: GitHub instance-specific cache keys for multi-instance support
 
 #### 8.2.2 Database Optimization
 - **Indexing**: Frequently queried fields indexed

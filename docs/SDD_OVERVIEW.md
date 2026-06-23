@@ -1,9 +1,9 @@
 # SDD Framework Overview
 ## OSS Compliance Web Application
 
-**Document Set Version:** 1.3  
-**Application Version:** 1.0  
-**Last Updated:** 2026-06-12
+**Document Set Version:** 1.4
+**Application Version:** 1.0
+**Last Updated:** 2026-06-23
 
 ---
 
@@ -282,6 +282,7 @@ For critical issues requiring immediate documentation updates:
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.4 | 2026-06-23 | System | Updated SDD_FRAMEWORK.md to v1.2 with multi-tier caching strategy and exact match search feature documentation |
 | 1.3 | 2026-06-12 | System | Added unified configuration interface, remote repository scanning, enhanced endpoint analysis, three-tier compliance model, SSL verification configuration, SAML SSO support |
 | 1.2 | 2026-06-12 | System | Added DATABASE_GUIDE.md, updated API_REFERENCE.md to v1.1 with admin APIs, updated DEPLOYMENT_GUIDE.md to v1.1 with v0.5.0 features |
 | 1.1 | 2026-06-05 | System | Added PR creation workflow, credential encryption, multi-user GitHub support, admin configuration UI |
