@@ -35,13 +35,8 @@ def debug_log(message: str):
     if _debug_logging_enabled:
         print(f"DEBUG: {message}")
 
-# Import enhanced scanner for advanced analysis
-try:
-    from enhanced_scanner import EnhancedComplianceScanner
-    ENHANCED_SCANNER_AVAILABLE = True
-except ImportError:
-    ENHANCED_SCANNER_AVAILABLE = False
-    print("Warning: EnhancedComplianceScanner not available. Enhanced scanning disabled.")
+# Import scanner for comprehensive analysis
+from enhanced_scanner import ComplianceScanner
 
 class RemoteRepositoryScanner:
     def __init__(self, github_instance_config=None, whitelist_urls=None, jenkins_config=None):
@@ -662,16 +657,13 @@ class RemoteRepositoryScanner:
         
         return report
     
-    def scan_remote_repository_enhanced(self, repo_name: str) -> Dict:
+    def scan_remote_repository(self, repo_name: str) -> Dict:
         """
-        Scan a remote repository using the enhanced endpoint analyzer.
+        Scan a remote repository using comprehensive endpoint analysis.
         Downloads the repository to a temp directory and runs comprehensive analysis.
         """
-        if not ENHANCED_SCANNER_AVAILABLE:
-            raise RuntimeError("Enhanced scanner is not available. Cannot perform enhanced scan.")
-        
         print(f"\n{'='*60}")
-        print(f"Enhanced scan for remote repository: {repo_name}")
+        print(f"Scanning remote repository: {repo_name}")
         print(f"{'='*60}")
         
         try:
@@ -680,9 +672,9 @@ class RemoteRepositoryScanner:
             repo_dir = self.download_repository_files(repo_name)
             print(f"Repository downloaded to: {repo_dir}")
             
-            # Run enhanced compliance scan on downloaded files
-            print(f"Running enhanced endpoint analysis...")
-            enhanced_scanner = EnhancedComplianceScanner(
+            # Run comprehensive compliance scan on downloaded files
+            print(f"Running comprehensive endpoint analysis...")
+            scanner = ComplianceScanner(
                 repo_root=str(repo_dir),
                 virtual_repos=self.virtual_repos,
                 artifactory_base=self.artifactory_base,
@@ -693,7 +685,7 @@ class RemoteRepositoryScanner:
                 jenkins_token=self.jenkins_token
             )
             
-            report = enhanced_scanner.scan_comprehensive()
+            report = scanner.scan_comprehensive()
             
             # Update metadata to indicate remote scan
             if 'scan_metadata' not in report:
@@ -701,8 +693,8 @@ class RemoteRepositoryScanner:
             
             report['scan_metadata'].update({
                 'repository_name': repo_name,
-                'repository_type': 'remote_enhanced',
-                'scan_method': 'enhanced_endpoint_analyzer',
+                'repository_type': 'remote',
+                'scan_method': 'compliance_scan',
                 'github_org': self.github_org,
                 'github_api_url': self.github_api_url,
                 'temp_directory': str(repo_dir)
@@ -741,89 +733,18 @@ class RemoteRepositoryScanner:
                     default_branch = report['scan_metadata'].get('default_branch', 'main')
                     finding['file_url'] = f"{repo_url}/blob/{default_branch}/{file_path}"
             
-            print(f"Enhanced scan completed for {repo_name}")
+            print(f"Scan completed for {repo_name}")
             return report
             
         except Exception as e:
-            print(f"FATAL ERROR in enhanced scan for {repo_name}: {e}")
+            print(f"FATAL ERROR in scan for {repo_name}: {e}")
             import traceback
             traceback.print_exc()
             # Re-raise the exception instead of falling back to basic scan
-            raise RuntimeError(f"Enhanced scan failed for {repo_name}: {e}") from e
+            raise RuntimeError(f"Scan failed for {repo_name}: {e}") from e
     
     def scan_multiple_repositories(self, repo_names: List[str]) -> Dict:
-        """Scan multiple repositories and return combined report"""
-        all_reports = {}
-        combined_findings = []
-        total_compliant = 0
-        total_non_compliant = 0
-        
-        for repo_name in repo_names:
-            try:
-                print(f"\n{'='*50}")
-                print(f"Scanning repository: {repo_name}")
-                print(f"{'='*50}")
-                
-                report = self.scan_remote_repository(repo_name)
-                all_reports[repo_name] = report
-                
-                # Aggregate findings with repository context
-                repo_findings = report.get('findings', [])
-                for finding in repo_findings:
-                    # Add repository context to each finding
-                    finding['repository'] = repo_name
-                    finding['source_repository'] = repo_name  # Keep for backward compatibility
-                    finding['file'] = f"{repo_name}: {finding.get('file', 'Unknown')}"
-                    # Construct repository URL for web link
-                    web_url = self.github_api_url.replace('api.', '').replace('/api/v3', '').replace('/api', '')
-                    finding['repository_url'] = f"{web_url}/{self.github_org}/{repo_name}"
-                combined_findings.extend(repo_findings)
-                total_compliant += report.get('scan_summary', {}).get('compliant_checks', 0)
-                total_non_compliant += report.get('scan_summary', {}).get('non_compliant_checks', 0)
-                
-            except Exception as e:
-                print(f"Error scanning repository {repo_name}: {e}")
-                all_reports[repo_name] = {'error': str(e)}
-        
-        # Create combined report
-        total_checks = total_compliant + total_non_compliant
-        combined_report = {
-            'scan_summary': {
-                'total_items': total_checks,  # UI expects total_items
-                'total_findings': len(combined_findings),
-                'compliant_items': total_compliant,  # UI expects compliant_items
-                'compliant_checks': total_compliant,  # Keep for backward compatibility
-                'non_compliant_items': total_non_compliant,  # UI expects non_compliant_items
-                'non_compliant_checks': total_non_compliant,  # Keep for backward compatibility
-                'compliance_percentage': round((total_compliant / total_checks) * 100, 2) if total_checks > 0 else 100,
-                'repositories_scanned': len(repo_names),
-                'repository_name': f"Multi-repo scan ({len(repo_names)} repositories)"
-            },
-            'approved_virtual_repositories': self.virtual_repos,
-            'findings': combined_findings,
-            'individual_reports': all_reports,
-            'recommendations': self._generate_multi_repo_recommendations(combined_findings)
-        }
-        
-        # Add metadata
-        combined_report['scan_metadata'] = {
-            'scanned_at': datetime.now().isoformat(),
-            'repository_type': 'remote_multi',
-            'github_org': self.github_org,
-            'github_api_url': self.github_api_url,
-            'repositories': repo_names,
-            'virtual_repositories': self.virtual_repos,
-            'artifactory_base': self.artifactory_base
-        }
-        
-        return combined_report
-    
-    def scan_multiple_repositories_enhanced(self, repo_names: List[str]) -> Dict:
-        """Scan multiple repositories with enhanced endpoint analysis"""
-        if not ENHANCED_SCANNER_AVAILABLE:
-            print("Enhanced scanner not available. Falling back to basic scan.")
-            return self.scan_multiple_repositories(repo_names)
-        
+        """Scan multiple repositories with comprehensive endpoint analysis"""
         all_reports = {}
         combined_findings = []
         total_components = 0
@@ -833,10 +754,10 @@ class RemoteRepositoryScanner:
         for repo_name in repo_names:
             try:
                 print(f"\n{'='*50}")
-                print(f"Enhanced scan for: {repo_name}")
+                print(f"Comprehensive scan for: {repo_name}")
                 print(f"{'='*50}")
                 
-                report = self.scan_remote_repository_enhanced(repo_name)
+                report = self.scan_remote_repository(repo_name)
                 all_reports[repo_name] = report
                 
                 # Aggregate findings with repository context
@@ -856,7 +777,7 @@ class RemoteRepositoryScanner:
                     total_non_compliant += comp_analysis.get('non_compliant_components', 0)
                 
             except Exception as e:
-                print(f"Error in enhanced scan for {repo_name}: {e}")
+                print(f"Error in scan for {repo_name}: {e}")
                 all_reports[repo_name] = {'error': str(e)}
         
         # Create combined report
@@ -864,8 +785,8 @@ class RemoteRepositoryScanner:
         
         combined_report = {
             'summary': {
-                'scan_type': 'remote_multi_enhanced',
-                'repository_name': f"Multi-repo enhanced scan ({len(repo_names)} repositories)",
+                'scan_type': 'remote_multi',
+                'repository_name': f"Multi-repo scan ({len(repo_names)} repositories)",
                 'scan_timestamp': datetime.now().isoformat(),
                 'component_analysis': {
                     'total_components': total_components,
@@ -880,8 +801,8 @@ class RemoteRepositoryScanner:
             'individual_reports': all_reports,
             'scan_metadata': {
                 'scanned_at': datetime.now().isoformat(),
-                'repository_type': 'remote_multi_enhanced',
-                'scan_method': 'enhanced_endpoint_analyzer',
+                'repository_type': 'remote_multi',
+                'scan_method': 'compliance_scan',
                 'github_org': self.github_org,
                 'github_api_url': self.github_api_url,
                 'repositories': repo_names,

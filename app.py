@@ -63,9 +63,8 @@ __version__ = '0.5.0'
 # Import the compliance scanners
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from compliance_scanner import ComplianceScanner
+from enhanced_scanner import ComplianceScanner
 from remote_scanner import RemoteRepositoryScanner
-from enhanced_scanner import EnhancedComplianceScanner
 from markdown_generator import generate_markdown_summary
 
 # Import database models
@@ -202,16 +201,12 @@ class WebComplianceScanner:
         """Get all configured GitHub instances"""
         return self.github_instances
     
-    def scan_repository(self, repo_path, use_enhanced=False):
+    def scan_repository(self, repo_path):
         """Scan a repository for compliance"""
-        if use_enhanced:
-            scanner = EnhancedComplianceScanner(repo_path, self.virtual_repos, self.artifactory_base, self.whitelist_urls)
-            return scanner.scan_comprehensive()
-        else:
-            scanner = ComplianceScanner(repo_path, self.virtual_repos, self.artifactory_base, self.whitelist_urls)
-            return scanner.scan()
+        scanner = ComplianceScanner(repo_path, self.virtual_repos, self.artifactory_base, self.whitelist_urls)
+        return scanner.scan_comprehensive()
     
-    def scan_remote_repository(self, repo_name, github_instance_id=None, use_enhanced=False):
+    def scan_remote_repository(self, repo_name, github_instance_id=None):
         """Scan a remote repository for compliance"""
         github_config = self.get_github_instance(github_instance_id) if github_instance_id else list(self.github_instances.values())[0] if self.github_instances else None
         
@@ -236,20 +231,14 @@ class WebComplianceScanner:
         
         self.remote_scanner = RemoteRepositoryScanner(github_config, self.whitelist_urls, self.jenkins_config)
         
-        if use_enhanced:
-            return self.remote_scanner.scan_remote_repository_enhanced(repo_name)
-        else:
-            return self.remote_scanner.scan_remote_repository(repo_name)
+        return self.remote_scanner.scan_remote_repository(repo_name)
     
-    def scan_multiple_repositories(self, repo_names, github_instance_id=None, use_enhanced=False):
+    def scan_multiple_repositories(self, repo_names, github_instance_id=None):
         """Scan multiple remote repositories"""
         github_config = self.get_github_instance(github_instance_id) if github_instance_id else list(self.github_instances.values())[0] if self.github_instances else None
         self.remote_scanner = RemoteRepositoryScanner(github_config, self.whitelist_urls, self.jenkins_config)
         
-        if use_enhanced:
-            return self.remote_scanner.scan_multiple_repositories_enhanced(repo_names)
-        else:
-            return self.remote_scanner.scan_multiple_repositories(repo_names)
+        return self.remote_scanner.scan_multiple_repositories(repo_names)
     
     def scan_team_repositories(self, team_name, github_instance_id=None):
         """Scan repositories for a specific team"""
@@ -369,7 +358,6 @@ def scan_repository():
     
     # Get scan type and input
     scan_type = request.form.get('scan_type', 'local')
-    use_enhanced = request.form.get('use_enhanced', 'false').lower() == 'true'  # Enhanced endpoint analyzer
     github_instance_id = request.form.get('github_instance', None)
     
     # Validate input based on scan type
@@ -417,8 +405,8 @@ def scan_repository():
     
     try:
         if scan_type == 'local':
-            # Local repository scan - use enhanced if requested
-            report = scanner.scan_repository(repo_input, use_enhanced=use_enhanced)
+            # Local repository scan
+            report = scanner.scan_repository(repo_input)
             
             # Add or update scan metadata
             if 'scan_metadata' not in report:
@@ -427,17 +415,17 @@ def scan_repository():
             report['scan_metadata'].update({
                 'scanned_at': datetime.now().isoformat(),
                 'repository_path': repo_input,
-                'repository_type': 'local_enhanced' if use_enhanced else 'local',
-                'scan_method': 'enhanced_endpoint_analyzer' if use_enhanced else 'basic_compliance',
+                'repository_type': 'local',
+                'scan_method': 'compliance_scan',
                 'virtual_repositories': scanner.virtual_repos,
                 'artifactory_base': scanner.artifactory_base
             })
         elif scan_type == 'remote':
-            # Remote repository scan - always use enhanced scanner
+            # Remote repository scan
             if len(repo_names) == 1:
-                report = scanner.scan_remote_repository(repo_names[0], github_instance_id, use_enhanced=True)
+                report = scanner.scan_remote_repository(repo_names[0], github_instance_id)
             else:
-                report = scanner.scan_multiple_repositories(repo_names, github_instance_id, use_enhanced=True)
+                report = scanner.scan_multiple_repositories(repo_names, github_instance_id)
         elif scan_type == 'team':
             # Team-based scan (use traditional for now, can add pipeline option later)
             report = scanner.scan_team_repositories(team_name, github_instance_id)
@@ -459,20 +447,17 @@ def scan_repository():
             repo_display_name = "unknown"
 
         # Add scan method to filename
-        if use_enhanced or scan_type == 'remote':
-            scan_method_display = "Enhanced Compliance Scan"
-        else:
-            scan_method_display = "Basic Compliance Scan"
+        scan_method_display = "Compliance Scan"
         
         report_filename = f"{repo_display_name}_oss_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         report_path = Path(app.config['REPORTS_FOLDER']) / report_filename
         with open(report_path, 'w') as f:
             json.dump(report, f, indent=2)
         
-        # Generate markdown summary for enhanced scans
+        # Generate markdown summary for scans with ecosystem breakdown
         markdown_filename = None
         markdown_path_str = None
-        if use_enhanced and 'ecosystem_breakdown' in report:
+        if 'ecosystem_breakdown' in report:
             markdown_filename = report_filename.replace('.json', '_summary.md')
             markdown_path = Path(app.config['REPORTS_FOLDER']) / markdown_filename
             markdown_path_str = str(markdown_path)
@@ -569,12 +554,12 @@ def scan_remote_repository():
     try:
         repo_list = [name.strip() for name in repo_names.split(',') if name.strip()]
         
-        # Always use enhanced scanner with runtime configuration enumeration
+        # Use comprehensive scanner
         if len(repo_list) == 1:
-            report = scanner.scan_remote_repository(repo_list[0], use_enhanced=True)
+            report = scanner.scan_remote_repository(repo_list[0])
             repo_display_name = repo_list[0].replace('/', '_')
         else:
-            report = scanner.scan_multiple_repositories(repo_list, use_enhanced=True)
+            report = scanner.scan_multiple_repositories(repo_list)
             repo_display_name = "multiple_repos"
         
         # Save report
