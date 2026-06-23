@@ -240,7 +240,7 @@ class EnhancedComplianceScanner:
                 'total_items': comprehensive_summary['component_analysis']['total_components'],
                 'compliant_items': comprehensive_summary['component_analysis']['compliant_components'],
                 'non_compliant_items': comprehensive_summary['component_analysis']['non_compliant_components'],
-                'compliance_percentage': comprehensive_summary['component_analysis']['component_compliance_percentage'],
+                'compliance_percentage': comprehensive_summary['basic_compliance']['compliance_percentage'],
                 'total_findings': total_findings_count,
                 'compliant_checks': runtime_compliant_count,
                 'non_compliant_checks': non_compliant_count,
