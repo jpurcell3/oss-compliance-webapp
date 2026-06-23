@@ -94,7 +94,7 @@ For issues or questions, please refer to the documentation or contact the suppor
 ## Version Information
 
 - Application Version: 1.0
-- Distribution Date: 2026-06-12
+- Distribution Date: 2026-06-22
 - Python Required: 3.9+
 
 ## Security Notes

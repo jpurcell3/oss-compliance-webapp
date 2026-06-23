@@ -1,7 +1,7 @@
 # Software Design Document (SDD) Framework
 ## OSS Compliance Web Application
 
-**Document Version:** 1.2
+**Document Version:** 1.3
 **Application Version:** 1.0
 **Last Updated:** 2026-06-23
 **Status:** Active
@@ -12,6 +12,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.3 | 2026-06-23 | System | Added repository classification system, minimal repository handling, runtime evidence vs. static file analysis, monorepo support considerations |
 | 1.2 | 2026-06-23 | System | Added multi-tier caching strategy (frontend sessionStorage + file-based cache), exact match auto-selection for repository search, improved cache hierarchy and invalidation |
 | 1.1 | 2026-06-05 | System | Added PR creation workflow, credential encryption, multi-user GitHub support, admin configuration UI |
 | 1.0 | 2026-05-29 | System | Initial SDD Framework |
@@ -121,6 +122,118 @@ The OSS Compliance Web Application is a Flask-based web application designed to 
 - **Database**: SQLite (default), upgradable to PostgreSQL
 - **Authentication**: Token-based for external services
 - **Deployment**: Must support both containerized and traditional deployment
+
+### 2.7 Repository Classification System
+
+#### 2.7.1 Classification Categories
+
+The system implements a repository classification system to provide accurate compliance assessment across different repository types:
+
+**Standard Repository**
+- Contains OSS dependency files (go.mod, requirements.txt, package.json, pom.xml)
+- Full component enumeration and compliance analysis
+- Compliance percentage: 0-100% based on component compliance
+- Examples: fusion-stage, fusion-plugins-service
+
+**Minimal Repository**
+- No OSS dependency files, minimal content (README only)
+- Static file analysis returns 0 components
+- Special status: "No OSS components detected" with contextual information
+- Example: fusion-stage-backend
+
+**Runtime-Only Repository**
+- No static OSS files, runtime evidence only from Jenkins
+- Compliance based on runtime configuration evidence
+- Requires Jenkins integration for assessment
+- Example: Build infrastructure repositories
+
+**Monorepo**
+- Multiple projects in single repository, shared dependencies
+- Requires hierarchical analysis and dependency mapping
+- Project-level and repository-level compliance reporting
+- Future enhancement: Planned support
+
+#### 2.7.2 Classification Algorithm
+
+```python
+def classify_repository(repo_analysis):
+    """Classify repository based on content and structure"""
+    if has_dependency_files(repo_analysis):
+        if is_monorepo_structure(repo_analysis):
+            return "MONOREPO"
+        else:
+            return "STANDARD"
+    elif has_runtime_evidence(repo_analysis):
+        return "RUNTIME_ONLY"
+    elif is_minimal_content(repo_analysis):
+        return "MINIMAL"
+    else:
+        return "UNKNOWN"
+```
+
+#### 2.7.3 Minimal Repository Handling
+
+**Detection Criteria**
+- No dependency files found (go.mod, requirements.txt, package.json, pom.xml, setup.py, etc.)
+- Minimal file structure (typically only README.md)
+- No source code or configuration files
+
+**Compliance Reporting**
+- Status: "No OSS components detected" instead of "0% compliance"
+- Context: Explanation of repository classification
+- Evidence: Display runtime evidence if available from Jenkins
+- Recommendations: Suggest investigation of repository structure
+
+**User Experience**
+- Clear distinction between compliance issues and repository structure
+- Actionable guidance for minimal repositories
+- Link to parent repositories or dependency sources when detected
+
+#### 2.7.4 Runtime Evidence vs. Static File Analysis
+
+**Dual Analysis Approach**
+The system performs both static file analysis and runtime evidence detection:
+
+**Static File Analysis**
+- Scans dependency files (go.mod, requirements.txt, package.json, pom.xml)
+- Analyzes configuration files (Dockerfile, Makefile, Jenkinsfile)
+- Inspects source code for direct URL references
+- Validates proxy configurations
+
+**Runtime Evidence Analysis**
+- Analyzes Jenkins build logs for runtime configurations
+- Detects environment variable usage
+- Identifies build-time dependency injection
+- Validates pipeline configurations
+
+**Discrepancy Handling**
+- **Static Files Present, Runtime Evidence Missing**: Flag as potential configuration issue
+- **Runtime Evidence Present, Static Files Missing**: Investigate repository structure (minimal repository)
+- **Both Present**: Validate consistency between static and runtime configurations
+- **Both Missing**: Repository may not require OSS dependencies
+
+#### 2.7.5 Monorepo Support Considerations
+
+**Current Limitations**
+- Single repository scanning as single unit
+- Flat dependency analysis without project hierarchy
+- Limited shared dependency tracking
+
+**Planned Enhancements**
+- Project detection within monorepo structure
+- Hierarchical scanning (project-level + repository-level)
+- Shared dependency mapping across projects
+- Selective scanning of specific projects
+
+**Implementation Strategy**
+```
+Monorepo Structure Detection:
+1. Analyze repository structure for project directories
+2. Identify shared dependency locations
+3. Scan individual projects independently
+4. Aggregate results at repository level
+5. Provide hierarchical compliance reporting
+```
 
 ---
 

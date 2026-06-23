@@ -1,9 +1,9 @@
 # High-Level Design (HLD)
 ## OSS Compliance Web Application
 
-**Document Version:** 1.1  
+**Document Version:** 1.2  
 **Application Version:** 0.5.0  
-**Last Updated:** 2026-06-05  
+**Last Updated:** 2026-06-23  
 **Status:** Active  
 **Classification:** Internal
 
@@ -13,6 +13,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.2 | 2026-06-23 | System | Added repository classification system, minimal repository handling, runtime evidence vs. static file analysis, monorepo support considerations |
 | 1.1 | 2026-06-05 | System | Added PR creation workflow, credential encryption, multi-user GitHub support, admin configuration UI |
 | 1.0 | 2026-05-29 | System | Initial High-Level Design |
 
@@ -333,6 +334,170 @@ User → Web UI → Flask App → PR Service → GitHub API
 PR Service → Fix Generator → File Modifications → GitHub API
                                    ↓
 PR Service → Jenkins API → Database ← Flask App → Web UI → User
+```
+
+---
+
+## 4.5 Repository Classification System
+
+### 4.5.1 Repository Types
+
+The system classifies repositories into distinct categories to provide accurate compliance assessment:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  REPOSITORY CLASSIFICATION                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────┐    ┌──────────────────┐                 │
+│  │  STANDARD REPO   │    │  MINIMAL REPO    │                 │
+│  │                  │    │                  │                 │
+│  │  • Contains OSS  │    │  • No OSS files  │                 │
+│  │    dependency    │    │  • README only   │                 │
+│  │    files         │    │  • Placeholder   │                 │
+│  │  • Can scan      │    │  • Sub-module    │                 │
+│  │    components    │    │  • External deps │                 │
+│  │  • 0-100% comp.  │    │  • 0% comp.     │                 │
+│  └──────────────────┘    └──────────────────┘                 │
+│                                                                 │
+│  ┌──────────────────┐    ┌──────────────────┐                 │
+│  │   MONOREPO       │    │  RUNTIME-ONLY    │                 │
+│  │                  │    │                  │                 │
+│  │  • Multiple      │    │  • No static     │                 │
+│  │    projects      │    │    files         │                 │
+│  │  • Shared deps   │    │  • Jenkins       │                 │
+│  │  • Complex scan  │    │    evidence only │                 │
+│  │  • Hierarchical  │    │  • Build-time    │                 │
+│  └──────────────────┘    └──────────────────┘                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.5.2 Classification Logic
+
+#### Standard Repository
+- **Characteristics**: Contains OSS dependency files (go.mod, requirements.txt, package.json, pom.xml)
+- **Scanning**: Full component enumeration and compliance analysis
+- **Compliance**: 0-100% based on component compliance
+- **Example**: fusion-stage, fusion-plugins-service
+
+#### Minimal Repository
+- **Characteristics**: No OSS dependency files, minimal content (README only)
+- **Scanning**: Static file analysis returns 0 components
+- **Compliance**: Technically 0% (0/0 components) but flagged as "No OSS components detected"
+- **Example**: fusion-stage-backend
+
+#### Monorepo
+- **Characteristics**: Multiple projects in single repository, shared dependencies
+- **Scanning**: Requires hierarchical analysis and dependency mapping
+- **Compliance**: Project-level and repository-level compliance
+- **Future Enhancement**: Planned support
+
+#### Runtime-Only Repository
+- **Characteristics**: No static OSS files, runtime evidence only from Jenkins
+- **Scanning**: Relies on Jenkins log analysis for compliance assessment
+- **Compliance**: Based on runtime configuration evidence
+- **Example**: Build infrastructure repositories
+
+### 4.5.3 Minimal Repository Handling
+
+#### Detection Algorithm
+```python
+def classify_repository(repo_analysis):
+    if has_dependency_files(repo_analysis):
+        if is_monorepo_structure(repo_analysis):
+            return "MONOREPO"
+        else:
+            return "STANDARD"
+    elif has_runtime_evidence(repo_analysis):
+        return "RUNTIME_ONLY"
+    elif is_minimal_content(repo_analysis):
+        return "MINIMAL"
+    else:
+        return "UNKNOWN"
+```
+
+#### Compliance Reporting
+- **Standard Repositories**: Normal compliance percentage (compliant/total components)
+- **Minimal Repositories**: Special status "No OSS components detected" with context
+- **Runtime-Only Repositories**: Compliance based on runtime configuration evidence
+- **Monorepos**: Hierarchical compliance reporting (project + repository level)
+
+#### User Experience
+- **Clear Status Messages**: Distinguish between "0% compliance" and "No OSS components"
+- **Contextual Information**: Explain why minimal repositories show 0% compliance
+- **Actionable Recommendations**: Suggest investigation of repository structure
+- **Evidence Presentation**: Show runtime evidence when available
+
+### 4.5.4 Runtime Evidence vs. Static File Analysis
+
+#### Dual Analysis Approach
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              COMPREHENSIVE COMPLIANCE ANALYSIS                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  STATIC FILE ANALYSIS           RUNTIME EVIDENCE ANALYSIS        │
+│  ┌──────────────────┐         ┌──────────────────┐              │
+│  │ • Dependency     │         │ • Jenkins logs   │              │
+│  │   file scanning  │         │ • Build configs  │              │
+│  │ • Source code    │         │ • Environment    │              │
+│  │   inspection    │         │   variables      │              │
+│  │ • Configuration  │         │ • Pipeline       │              │
+│  │   file analysis │         │   definitions    │              │
+│  └──────────────────┘         └──────────────────┘              │
+│           │                            │                        │
+│           └────────────┬───────────────┘                        │
+│                        ▼                                        │
+│              ┌──────────────────┐                              │
+│              │  MERGED REPORT    │                              │
+│              │                  │                              │
+│              │ • Component      │                              │
+│              │   compliance     │                              │
+│              │ • Runtime        │                              │
+│              │   configuration  │                              │
+│              │ • Discrepancy    │                              │
+│              │   analysis       │                              │
+│              └──────────────────┘                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Discrepancy Handling
+- **Static Files Present, Runtime Evidence Missing**: Flag as potential configuration issue
+- **Runtime Evidence Present, Static Files Missing**: Investigate repository structure
+- **Both Present**: Validate consistency between static and runtime configurations
+- **Both Missing**: Repository may not require OSS dependencies
+
+### 4.5.5 Monorepo Support Considerations
+
+#### Current Limitations
+- **Single Repository Scanning**: Scans entire repository as single unit
+- **Flat Dependency Analysis**: Doesn't account for project hierarchies
+- **Shared Dependency Tracking**: Limited support for shared dependencies
+
+#### Future Enhancements
+- **Project Detection**: Identify individual projects within monorepo
+- **Hierarchical Scanning**: Scan at project level with repository-level aggregation
+- **Dependency Mapping**: Track shared dependencies across projects
+- **Selective Scanning**: Allow scanning specific projects within monorepo
+
+#### Implementation Approach
+```
+Monorepo Structure:
+├── projects/
+│   ├── project-a/ (go.mod, requirements.txt)
+│   ├── project-b/ (package.json)
+│   └── shared/ (common dependencies)
+├── tools/ (build infrastructure)
+└── docs/ (documentation)
+
+Scanning Strategy:
+1. Detect monorepo structure
+2. Identify individual projects
+3. Scan each project independently
+4. Aggregate results at repository level
+5. Provide project-specific and repository-level compliance
 ```
 
 ---
