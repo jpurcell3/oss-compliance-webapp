@@ -1740,27 +1740,34 @@ def get_github_user(instance_id, username):
 def delete_github_user(instance_id, username):
     """Delete a GitHub user"""
     try:
+        config_manager = get_config_manager()
+        github_instances = config_manager.get_github_instances()
+        
+        if instance_id not in github_instances:
+            return jsonify({'success': False, 'message': 'Instance not found'}), 404
+        
+        # Load current config to get the users list
         config_path = Path('config/app_config.yaml')
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
         
-        github_instances = config.get('github_instances', {})
+        github_instances_data = config.get('github_instances', {})
+        users = github_instances_data[instance_id].get('users', [])
+        github_instances_data[instance_id]['users'] = [u for u in users if u.get('username') != username]
         
-        if instance_id in github_instances:
-            users = github_instances[instance_id].get('users', [])
-            github_instances[instance_id]['users'] = [u for u in users if u.get('username') != username]
-            
-            config['github_instances'] = github_instances
-            
-            with open(config_path, 'w') as f:
-                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-            
-            # Reload configuration to pick up changes
-            reload_config()
-            
-            return jsonify({'success': True, 'message': 'User deleted successfully'})
+        # Update using ConfigManager for consistency
+        updates = {
+            'github_instances': {
+                instance_id: {
+                    'users': github_instances_data[instance_id]['users']
+                }
+            }
+        }
         
-        return jsonify({'success': False, 'message': 'Instance not found'}), 404
+        config_manager.update_config(updates, validate=False)
+        
+        return jsonify({'success': True, 'message': 'User deleted successfully'})
+        
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1773,17 +1780,20 @@ def update_github_user():
         email = request.form.get('email', '')
         token = request.form.get('token')
         
-        config_path = Path('config/app_config.yaml')
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        
-        github_instances = config.get('github_instances', {})
+        config_manager = get_config_manager()
+        github_instances = config_manager.get_github_instances()
         
         if instance_id not in github_instances:
             flash('GitHub instance not found', 'error')
             return redirect(url_for('config'))
         
-        users = github_instances[instance_id].get('users', [])
+        # Load current config to get the users list
+        config_path = Path('config/app_config.yaml')
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        github_instances_data = config.get('github_instances', {})
+        users = github_instances_data[instance_id].get('users', [])
         
         # Check if user exists
         user_exists = False
@@ -1807,14 +1817,16 @@ def update_github_user():
                 new_user['token_encrypted'] = encrypt_token(token)
             users.append(new_user)
         
-        github_instances[instance_id]['users'] = users
-        config['github_instances'] = github_instances
+        # Update using ConfigManager for consistency
+        updates = {
+            'github_instances': {
+                instance_id: {
+                    'users': users
+                }
+            }
+        }
         
-        with open(config_path, 'w') as f:
-            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-        
-        # Reload configuration to pick up changes
-        reload_config()
+        config_manager.update_config(updates, validate=False)
         
         flash(f'User {username} saved successfully', 'success')
         return redirect(url_for('config'))
@@ -1848,7 +1860,7 @@ def update_endpoint():
             if not instance_id and instance_name:
                 instance_id = instance_name.lower().replace(' ', '_').replace('-', '_')
             
-            # Load YAML directly to work with plain dicts
+            # Load current config to get existing users
             config_path = Path('config/app_config.yaml')
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -1897,14 +1909,14 @@ def update_endpoint():
                         new_user['token_encrypted'] = encrypt_token(data.get('token'))
                     github_instances[instance_id]['users'].append(new_user)
             
-            # Save back to YAML
-            config['github_instances'] = github_instances
-            with open(config_path, 'w') as f:
-                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+            # Update using ConfigManager for consistency
+            updates = {
+                'github_instances': {
+                    instance_id: github_instances[instance_id]
+                }
+            }
             
-            # Reload config to pick up changes
-            from config_manager import reload_config
-            reload_config()
+            config_manager.update_config(updates, validate=False)
             
         elif endpoint_type == 'jenkins':
             # Get form field values
@@ -1913,7 +1925,7 @@ def update_endpoint():
             jenkins_token = data.get('endpoint_token') or data.get('token')
             instance_id = data.get('instance_id')
             
-            # Load YAML directly
+            # Load current config to get existing Jenkins config
             config_path = Path('config/app_config.yaml')
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -1950,14 +1962,12 @@ def update_endpoint():
             if jenkins_token:
                 jenkins['token_encrypted'] = encrypt_token(jenkins_token)
             
-            # Save back to YAML
-            config['jenkins'] = jenkins
-            with open(config_path, 'w') as f:
-                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+            # Update using ConfigManager for consistency
+            updates = {
+                'jenkins': jenkins
+            }
             
-            # Reload config to pick up changes
-            from config_manager import reload_config
-            reload_config()
+            config_manager.update_config(updates, validate=False)
             
         elif endpoint_type == 'artifactory':
             # Get form field values
@@ -1965,7 +1975,7 @@ def update_endpoint():
             artifactory_user = data.get('endpoint_user') or data.get('user')
             artifactory_token = data.get('endpoint_token') or data.get('token')
             
-            # Load YAML directly
+            # Load current config to get existing Artifactory config
             config_path = Path('config/app_config.yaml')
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -1981,14 +1991,12 @@ def update_endpoint():
             if artifactory_user:
                 artifactory['user'] = artifactory_user
             
-            # Save back to YAML
-            config['artifactory'] = artifactory
-            with open(config_path, 'w') as f:
-                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+            # Update using ConfigManager for consistency
+            updates = {
+                'artifactory': artifactory
+            }
             
-            # Reload config to pick up changes
-            from config_manager import reload_config
-            reload_config()
+            config_manager.update_config(updates, validate=False)
         
         # Return appropriate response based on request type
         if request.is_json:
