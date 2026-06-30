@@ -451,6 +451,8 @@ class EndpointAnalyzer:
                 lines = content.split('\n')
                 
                 for line_num, line in enumerate(lines, 1):
+                    line_stripped = line.strip()
+                    
                     # Look for curl/wget commands with URLs
                     url_match = re.search(r'(?:curl|wget)[^;]*?(https?://[^\s\'"]+)', line)
                     if url_match:
@@ -464,8 +466,67 @@ class EndpointAnalyzer:
                             config_location=ConfigurationLocation.MAKEFILE,
                             config_file=str(makefile.relative_to(self.repo_root)),
                             config_line=line_num,
-                            config_snippet=line.strip(),
+                            config_snippet=line_stripped,
                             is_compliant=self.artifactory_base in url
+                        ))
+                    
+                    # Look for GOPROXY exports (NEW: handles environment variable exports)
+                    goproxy_match = re.search(r'export\s+GOPROXY\s*[=:]\s*["\'"]?([^"\'\n]+)', line, re.IGNORECASE)
+                    if goproxy_match:
+                        goproxy_value = goproxy_match.group(1).strip('\'"')
+                        
+                        # GOPROXY can have comma-separated values (primary,fallback)
+                        # Check if any part is compliant
+                        is_compliant = self.artifactory_base in goproxy_value
+                        
+                        endpoint_type = self._classify_endpoint(goproxy_value)
+                        
+                        self.endpoint_configs.append(EndpointConfiguration(
+                            endpoint_url=goproxy_value,
+                            endpoint_type=endpoint_type,
+                            config_location=ConfigurationLocation.MAKEFILE,
+                            config_file=str(makefile.relative_to(self.repo_root)),
+                            config_line=line_num,
+                            config_snippet=line_stripped,
+                            is_compliant=is_compliant,
+                            notes="GOPROXY environment variable export"
+                        ))
+                    
+                    # Look for other package manager proxy exports
+                    # PIP_INDEX_URL
+                    pip_match = re.search(r'export\s+PIP_INDEX_URL\s*[=:]\s*["\'"]?([^"\'\n]+)', line, re.IGNORECASE)
+                    if pip_match:
+                        pip_url = pip_match.group(1).strip('\'"')
+                        is_compliant = self.artifactory_base in pip_url
+                        endpoint_type = self._classify_endpoint(pip_url)
+                        
+                        self.endpoint_configs.append(EndpointConfiguration(
+                            endpoint_url=pip_url,
+                            endpoint_type=endpoint_type,
+                            config_location=ConfigurationLocation.MAKEFILE,
+                            config_file=str(makefile.relative_to(self.repo_root)),
+                            config_line=line_num,
+                            config_snippet=line_stripped,
+                            is_compliant=is_compliant,
+                            notes="PIP_INDEX_URL environment variable export"
+                        ))
+                    
+                    # NPM_CONFIG_REGISTRY
+                    npm_match = re.search(r'export\s+NPM_CONFIG_REGISTRY\s*[=:]\s*["\'"]?([^"\'\n]+)', line, re.IGNORECASE)
+                    if npm_match:
+                        npm_url = npm_match.group(1).strip('\'"')
+                        is_compliant = self.artifactory_base in npm_url
+                        endpoint_type = self._classify_endpoint(npm_url)
+                        
+                        self.endpoint_configs.append(EndpointConfiguration(
+                            endpoint_url=npm_url,
+                            endpoint_type=endpoint_type,
+                            config_location=ConfigurationLocation.MAKEFILE,
+                            config_file=str(makefile.relative_to(self.repo_root)),
+                            config_line=line_num,
+                            config_snippet=line_stripped,
+                            is_compliant=is_compliant,
+                            notes="NPM_CONFIG_REGISTRY environment variable export"
                         ))
             except Exception as e:
                 print(f"Error analyzing {makefile}: {e}")
@@ -771,9 +832,19 @@ class EndpointAnalyzer:
         for config in self.endpoint_configs:
             # Check if this config is a proxy (contains artifactory)
             if self.artifactory_base in config.endpoint_url:
-                # Check if it applies to this ecosystem
+                # Check if it applies to this ecosystem by:
+                # 1. Checking config snippet for keywords (original logic)
                 if any(keyword.lower() in config.config_snippet.lower() for keyword in keywords):
                     return True
+                
+                # 2. Checking config notes for environment variable exports (NEW: Makefile-derived configs)
+                if config.notes and any(keyword.lower() in config.notes.lower() for keyword in keywords):
+                    return True
+                
+                # 3. Checking config location for Makefile configs with ecosystem-specific keywords
+                if config.config_location == ConfigurationLocation.MAKEFILE:
+                    if any(keyword.lower() in config.config_snippet.lower() for keyword in keywords):
+                        return True
         
         return False
     
