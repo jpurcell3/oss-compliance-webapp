@@ -644,14 +644,69 @@ class ConfigurationEnumerator:
         return configs
     
     def _find_npm_config_files(self, repo_path: Path) -> List[RuntimeConfiguration]:
-        """Find .npmrc files"""
+        """Find .npmrc files including parent directories and npm scripts"""
         configs = []
         
+        # Check for .npmrc in repo and parent directories
+        npmrc_locations = []
+        
+        # First, check current repo directory
+        if (repo_path / '.npmrc').exists():
+            npmrc_locations.append(repo_path / '.npmrc')
+        
+        # Then check parent directories up to 3 levels up
+        current_path = repo_path
+        for _ in range(3):
+            parent = current_path.parent
+            if parent != current_path:  # Not at root
+                if (parent / '.npmrc').exists():
+                    npmrc_locations.append(parent / '.npmrc')
+                current_path = parent
+            else:
+                break
+        
+        # Also check recursively (existing behavior)
         for npmrc in repo_path.rglob('.npmrc'):
+            if npmrc not in npmrc_locations:
+                npmrc_locations.append(npmrc)
+        
+        # Check package.json for npm scripts with registry configuration
+        for pkg_json in repo_path.rglob('package.json'):
+            try:
+                with open(pkg_json, 'r', encoding='utf-8') as f:
+                    pkg_content = json.load(f)
+                    
+                    # Check scripts section for npm config set registry commands
+                    scripts = pkg_content.get('scripts', {})
+                    if isinstance(scripts, dict):
+                        for script_name, script_cmd in scripts.items():
+                            if isinstance(script_cmd, str):
+                                # Look for npm config set registry commands
+                                registry_match = re.search(
+                                    r'npm\s+config\s+set\s+registry\s+([^\s&|;]+)',
+                                    script_cmd,
+                                    re.IGNORECASE
+                                )
+                                if registry_match:
+                                    registry_url = registry_match.group(1).strip('\'"')
+                                    configs.append(RuntimeConfiguration(
+                                        package_manager='npm',
+                                        config_type='registry',
+                                        config_value=registry_url,
+                                        source_type='repo_file',
+                                        source_location=f"{pkg_json.relative_to(repo_path)}:scripts.{script_name}",
+                                        evidence=f"npm script: {script_name}='{script_cmd}'",
+                                        timestamp=datetime.now(),
+                                        confidence='medium'
+                                    ))
+            except Exception as e:
+                pass  # Skip if unable to parse
+        
+        for npmrc in npmrc_locations:
             try:
                 content = npmrc.read_text()
                 
-                # Parse registry from .npmrc
+                # Parse global registry from .npmrc
                 registry_pattern = re.compile(r'registry\s*=\s*(.+)', re.IGNORECASE)
                 matches = registry_pattern.findall(content)
                 
@@ -663,6 +718,23 @@ class ConfigurationEnumerator:
                         source_type='repo_file',
                         source_location=str(npmrc.relative_to(repo_path)),
                         evidence=f"File content:\n{content[:500]}",
+                        timestamp=datetime.now(),
+                        confidence='medium'
+                    ))
+                
+                # Parse scope-specific registries from .npmrc
+                # Pattern: @scope:registry=<url>
+                scope_registry_pattern = re.compile(r'(@[\w-]+):registry\s*=\s*(.+)', re.IGNORECASE)
+                scope_matches = scope_registry_pattern.findall(content)
+                
+                for scope, registry_url in scope_matches:
+                    configs.append(RuntimeConfiguration(
+                        package_manager='npm',
+                        config_type=f'scope_registry_{scope}',
+                        config_value=registry_url.strip(),
+                        source_type='repo_file',
+                        source_location=str(npmrc.relative_to(repo_path)),
+                        evidence=f"Scope-specific registry: {scope}:registry={registry_url.strip()}",
                         timestamp=datetime.now(),
                         confidence='medium'
                     ))
@@ -1053,46 +1125,89 @@ class ConfigurationEnumerator:
                     if not workflow:
                         continue
                     
-                    # Check for env variables in workflow
+                    workflow_name = workflow.get('name', workflow_file.name)
+                    
+                    # Check for workflow-level env variables
                     if 'env' in workflow:
-                        for key, value in workflow['env'].items():
-                            if key == 'GOPROXY':
-                                configs['go'].append(RuntimeConfiguration(
-                                    package_manager='go',
-                                    config_type='proxy',
-                                    config_value=str(value),
-                                    source_type='github_actions',
-                                    source_location=str(workflow_file.relative_to(repo_path)),
-                                    evidence=f"env.{key}: {value}",
-                                    timestamp=datetime.now(),
-                                    confidence='high'
-                                ))
-                            elif key in ['PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL']:
-                                configs['pip'].append(RuntimeConfiguration(
-                                    package_manager='pip',
-                                    config_type='index_url',
-                                    config_value=str(value),
-                                    source_type='github_actions',
-                                    source_location=str(workflow_file.relative_to(repo_path)),
-                                    evidence=f"env.{key}: {value}",
-                                    timestamp=datetime.now(),
-                                    confidence='high'
-                                ))
-                            elif key == 'NPM_CONFIG_REGISTRY':
-                                configs['npm'].append(RuntimeConfiguration(
-                                    package_manager='npm',
-                                    config_type='registry',
-                                    config_value=str(value),
-                                    source_type='github_actions',
-                                    source_location=str(workflow_file.relative_to(repo_path)),
-                                    evidence=f"env.{key}: {value}",
-                                    timestamp=datetime.now(),
-                                    confidence='high'
-                                ))
+                        self._extract_env_vars(workflow['env'], configs, workflow_file, repo_path, workflow_name)
+                    
+                    # Check for job-level env variables and step-level configs
+                    if 'jobs' in workflow:
+                        for job_name, job_config in workflow['jobs'].items():
+                            if isinstance(job_config, dict):
+                                # Check job-level env
+                                if 'env' in job_config:
+                                    self._extract_env_vars(job_config['env'], configs, workflow_file, repo_path, f"{workflow_name}/{job_name}")
+                                
+                                # Check steps for npm registry configurations
+                                if 'steps' in job_config:
+                                    for step_idx, step in enumerate(job_config['steps']):
+                                        if isinstance(step, dict):
+                                            # Check step-level env
+                                            if 'env' in step:
+                                                self._extract_env_vars(step['env'], configs, workflow_file, repo_path, f"{workflow_name}/{job_name}/step-{step_idx}")
+                                            
+                                            # Check for npm registry in run commands
+                                            if 'run' in step:
+                                                run_cmd = step['run']
+                                                npm_registry_match = re.search(r'npm\s+config\s+set\s+registry\s+([^\s\n]+)', run_cmd, re.IGNORECASE)
+                                                if npm_registry_match:
+                                                    registry_url = npm_registry_match.group(1).strip('\'"')
+                                                    configs['npm'].append(RuntimeConfiguration(
+                                                        package_manager='npm',
+                                                        config_type='registry',
+                                                        config_value=registry_url,
+                                                        source_type='github_actions',
+                                                        source_location=str(workflow_file.relative_to(repo_path)),
+                                                        evidence=f"Step run command: npm config set registry {registry_url}",
+                                                        timestamp=datetime.now(),
+                                                        confidence='high'
+                                                    ))
             except Exception as e:
                 print(f"Error reading GitHub Actions workflow {workflow_file}: {e}")
         
         return configs
+    
+    def _extract_env_vars(self, env_dict: Dict, configs: Dict[str, List[RuntimeConfiguration]], 
+                         workflow_file: Path, repo_path: Path, location: str):
+        """Extract environment variables and add to configs"""
+        if not isinstance(env_dict, dict):
+            return
+        
+        for key, value in env_dict.items():
+            if key == 'GOPROXY':
+                configs['go'].append(RuntimeConfiguration(
+                    package_manager='go',
+                    config_type='proxy',
+                    config_value=str(value),
+                    source_type='github_actions',
+                    source_location=str(workflow_file.relative_to(repo_path)),
+                    evidence=f"env.{key}: {value} (in {location})",
+                    timestamp=datetime.now(),
+                    confidence='high'
+                ))
+            elif key in ['PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL']:
+                configs['pip'].append(RuntimeConfiguration(
+                    package_manager='pip',
+                    config_type='index_url',
+                    config_value=str(value),
+                    source_type='github_actions',
+                    source_location=str(workflow_file.relative_to(repo_path)),
+                    evidence=f"env.{key}: {value} (in {location})",
+                    timestamp=datetime.now(),
+                    confidence='high'
+                ))
+            elif key == 'NPM_CONFIG_REGISTRY':
+                configs['npm'].append(RuntimeConfiguration(
+                    package_manager='npm',
+                    config_type='registry',
+                    config_value=str(value),
+                    source_type='github_actions',
+                    source_location=str(workflow_file.relative_to(repo_path)),
+                    evidence=f"env.{key}: {value} (in {location})",
+                    timestamp=datetime.now(),
+                    confidence='high'
+                ))
     
     def get_artifactory_servers_from_configs(self, configs: Dict[str, List[RuntimeConfiguration]]) -> List[Dict]:
         """Extract unique Artifactory servers from configurations"""

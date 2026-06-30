@@ -275,11 +275,36 @@ class ComplianceScanner:
                 if 'peerDependencies' in content:
                     dependencies.update(content['peerDependencies'])
                 
+                # Check for npm workspaces configuration
+                is_workspace_root = 'workspaces' in content
+                
                 # Check for publishConfig or registry configuration
                 registry_configured = False
+                registry_source = None
+                
+                # Check publishConfig.registry
                 if 'publishConfig' in content and 'registry' in content['publishConfig']:
                     if self.artifactory_base in content['publishConfig']['registry']:
                         registry_configured = True
+                        registry_source = 'publishConfig.registry'
+                
+                # Check config.registry (additional npm configuration field)
+                if not registry_configured and 'config' in content and 'registry' in content['config']:
+                    if self.artifactory_base in content['config']['registry']:
+                        registry_configured = True
+                        registry_source = 'config.registry'
+                
+                # Check for scope-specific registry configurations
+                if not registry_configured:
+                    package_name = content.get('name', '')
+                    if package_name.startswith('@'):
+                        # Extract scope from package name (e.g., @fusion -> fusion)
+                        scope = package_name.split('/')[0][1:]  # Remove @
+                        scope_registry_key = f"@{scope}:registry"
+                        if 'config' in content and scope_registry_key in content['config']:
+                            if self.artifactory_base in content['config'][scope_registry_key]:
+                                registry_configured = True
+                                registry_source = f'config.{scope_registry_key}'
                 
                 # Count each npm dependency
                 for dep_name in dependencies.keys():
@@ -297,21 +322,120 @@ class ComplianceScanner:
                             'compliant': False
                         })
                 
+                # Check package-lock.json for actual registry usage evidence
+                lockfile_registry_evidence = None
+                lockfile_path = pkg_file.parent / 'package-lock.json'
+                if lockfile_path.exists():
+                    try:
+                        lockfile_content = json.loads(lockfile_path.read_text())
+                        lockfile_registry_evidence = self._analyze_package_lock_registry(lockfile_content)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        pass
+                
                 # Keep file-level check for backward compatibility
                 if not registry_configured:
+                    # Check if package-lock.json provides evidence
+                    if lockfile_registry_evidence:
+                        # Package-lock.json shows actual registry usage
+                        if lockfile_registry_evidence['is_compliant']:
+                            self.compliant_count += 1
+                            self.findings.append({
+                                'file': str(relative_path),
+                                'type': 'node_package',
+                                'issue': f'NPM registry detected from package-lock.json: {lockfile_registry_evidence["registry"]}',
+                                'severity': 'INFO',
+                                'recommended_action': None,
+                                'compliant': True
+                            })
+                        else:
+                            self.non_compliant_count += 1
+                            self.findings.append({
+                                'file': str(relative_path),
+                                'type': 'node_package',
+                                'issue': f'No NPM registry configured (package-lock.json uses {lockfile_registry_evidence["registry"]})',
+                                'severity': 'HIGH',
+                                'recommended_action': f'Configure NPM registry: {self.virtual_repos.get("npm", "npm-virtual")}',
+                                'compliant': False
+                            })
+                    else:
+                        # No package-lock.json or unable to parse
+                        self.findings.append({
+                            'file': str(relative_path),
+                            'type': 'node_package',
+                            'issue': 'No NPM registry configured (defaults to npmjs.org)',
+                            'severity': 'HIGH',
+                            'recommended_action': f'Configure NPM registry: {self.virtual_repos.get("npm", "npm-virtual")}',
+                            'compliant': False
+                        })
+                        self.non_compliant_count += 1
+                else:
+                    self.compliant_count += 1
+                    # Add info finding about registry configuration source
                     self.findings.append({
                         'file': str(relative_path),
                         'type': 'node_package',
-                        'issue': 'No NPM registry configured (defaults to npmjs.org)',
-                        'severity': 'HIGH',
-                        'recommended_action': f'Configure NPM registry: {self.virtual_repos.get("npm", "npm-virtual")}',
-                        'compliant': False
+                        'issue': f'NPM registry configured via {registry_source}',
+                        'severity': 'INFO',
+                        'recommended_action': None,
+                        'compliant': True
                     })
-                    self.non_compliant_count += 1
-                else:
-                    self.compliant_count += 1
             except (json.JSONDecodeError, UnicodeDecodeError):
                 pass
+    
+    def _analyze_package_lock_registry(self, lockfile_content: Dict) -> Dict:
+        """
+        Analyze package-lock.json to detect actual registry usage.
+        Returns dict with registry info and compliance status.
+        """
+        try:
+            packages = lockfile_content.get('packages', {})
+            if not packages:
+                return None
+            
+            # Sample resolved URLs to detect registry
+            registries = set()
+            sample_count = 0
+            
+            for pkg_name, pkg_data in packages.items():
+                if sample_count >= 10:  # Sample first 10 packages
+                    break
+                
+                resolved = pkg_data.get('resolved', '')
+                if resolved:
+                    sample_count += 1
+                    
+                    # Detect registry from URL
+                    if 'registry.npmjs.org' in resolved:
+                        registries.add('npmjs.org')
+                    elif 'artifactory' in resolved.lower():
+                        registries.add('artifactory')
+                        # Check if it's our approved Artifactory
+                        if self.artifactory_base in resolved:
+                            registries.add('approved-artifactory')
+                    elif 'npm.pkg.github.com' in resolved:
+                        registries.add('github-npm')
+                    else:
+                        import re
+                        match = re.search(r'https?://([^/]+)/', resolved)
+                        if match:
+                            registries.add(match.group(1))
+            
+            if not registries:
+                return None
+            
+            # Determine compliance
+            is_compliant = 'approved-artifactory' in registries
+            primary_registry = list(registries)[0] if registries else 'unknown'
+            
+            return {
+                'registry': primary_registry,
+                'registries': list(registries),
+                'is_compliant': is_compliant,
+                'sample_size': sample_count
+            }
+        except Exception as e:
+            print(f"Error analyzing package-lock.json: {e}")
+            return None
     
     def scan_maven_poms(self):
         """Scan pom.xml files for Maven repository configuration and count individual dependencies"""
@@ -1593,7 +1717,7 @@ def main():
     output_file = sys.argv[2] if len(sys.argv) > 2 else 'compliance_report.json'
     
     # Initialize scanner
-    scanner = EnhancedComplianceScanner(repo_path)
+    scanner = ComplianceScanner(repo_path)
     
     # Run comprehensive scan
     report = scanner.scan_comprehensive()

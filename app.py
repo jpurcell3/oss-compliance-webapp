@@ -1771,6 +1771,39 @@ def delete_github_user(instance_id, username):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/api/github-instance/<instance_id>', methods=['DELETE'])
+def delete_github_instance(instance_id):
+    """Delete a GitHub instance"""
+    try:
+        # Load current config to get the full structure
+        config_path = Path('config/app_config.yaml')
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        github_instances_data = config.get('github_instances', {})
+        
+        if instance_id not in github_instances_data:
+            return jsonify({'success': False, 'message': 'Instance not found'}), 404
+        
+        # Check if this is the last instance - prevent deletion if it would leave zero instances
+        if len(github_instances_data) <= 1:
+            return jsonify({'success': False, 'message': 'Cannot delete the last GitHub instance. At least one instance must be configured.'}), 400
+        
+        # Delete the instance
+        del github_instances_data[instance_id]
+        
+        # Write the updated config back to file directly
+        with open(config_path, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        
+        # Reload config manager to ensure changes are reflected
+        reload_config()
+        
+        return jsonify({'success': True, 'message': 'GitHub instance deleted successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/update-github-user', methods=['POST'])
 def update_github_user():
     """Add or update a GitHub user"""

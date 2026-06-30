@@ -18,13 +18,13 @@
     ],
   
   "InfraFleet": [
+  	"dap-go-commons",
   	"hzp-api-gateway-svc",
 	"hzp-datacollection-svc",
 	"hzp-eo-initialization-svc",
 	"hzp-fido-onboarding-svc",
 	"hzp-fido-owner-reseller",
 	"hzp-fido-rv",
-	"dap-go-commons",
 	"hzp-health-check-svc",
 	"hzp-inventory",
 	"hzp-job-svc",
@@ -42,12 +42,29 @@
    ],
    
   "Security": [
+	"dsp-iam-configuration-svc",
+	"dsp-iam-login-svc",
+	"dsp-iam-mgmt-svc",
+	"dsp-iam-policy-svc",
+	"dsp-iam-session-svc",
+	"dsp-iam-svc",
+	"dsp-iam-token-svc",
+	"dsp-iam-webhook-svc",
 	"hzp-attestation-svc",
+	"hzp-iam-bootstrap-job",
+	"hzp-iam-lib-go",
+	"hzp-iam-lib-java",
+	"hzp-iam-lib-nodejs",
+	"hzp-iam-lib-py",
 	"hzp-iam-policy-svc",
+	"hzp-iam-proxy",
 	"hzp-iam-session-svc",
 	"hzp-iam-webhook-svc",
-	"hzp-keycloak-login"
+	"hzp-powerapi-lib-go",
+	"hzp-vault-bootstrap"
 	],
+
+
 
   "Orchestration": [
 	"fusion-agent",

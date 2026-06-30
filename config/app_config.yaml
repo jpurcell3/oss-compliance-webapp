@@ -21,7 +21,7 @@ github_instances:
     users:
     - username: jpurcell
       email: ''
-      token_encrypted: gAAAAABqM_b83GZxBWS9z7vh3S7wZK28KWKtKykkwPVbymt3pY70pI9my7bSR6Qw4DHjEnHbvxMt1QWWzoi7CbE-9EmYaXxBHebBvs0FO_HHVJW9VR2Ugp3chHIx6WJbt9URSBVFfHdZ
+      token_encrypted: gAAAAABqPUm57DNZkNeXU8B6gxQcYF1PThtfCruQEGKvBQtFGIg2fcwqEpcBkkmj1MW3nY39yp9r6UtTbOEBlY6SzjYCn6al6P0u4xqDIbI9zZr5curXC7t-GqsuKnRxah-X-PsRVCEm
   github:
     name: fusion-e
     api_url: https://api.github.com
@@ -42,7 +42,7 @@ whitelist_urls:
 - eos2git.cec.lab.emc.com
 - github.com/cloudify-cosmo
 app_settings:
-  max_scan_threads: 4
+  max_scan_threads: 8
   cache_ttl_hours: 1
   report_retention_days: 90
   debug_logging: true

@@ -55,3 +55,7 @@ uploads/
 *.tmp
 *.bak
 *.backup
+
+# Scan reports
+*_scan_report.json
+*_scan_report.html
